@@ -22,7 +22,7 @@ def current_platform(system: str | None = None) -> str:
         return "windows"
     if normalized == "linux":
         return "linux"
-    if normalized == "darwin":
+    if normalized in {"darwin", "macos"}:
         return "macos"
     raise RuntimeError(f"Sistema operativo non supportato: {normalized}")
 
