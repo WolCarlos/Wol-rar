@@ -38,6 +38,19 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Build
         run: python scripts/build.py
+      - name: Smoke test Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: ./dist/Wol-rar.exe --smoke-test
+      - name: Smoke test Ubuntu
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          xvfb-run -a ./dist/Wol-rar --smoke-test
+      - name: Smoke test macOS
+        if: matrix.platform == 'macos'
+        run: ./dist/Wol-rar.app/Contents/MacOS/Wol-rar --smoke-test
       - name: Firma Windows con certificato fornito
         if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
         shell: pwsh
