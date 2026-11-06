@@ -26,7 +26,7 @@ Prima di installare un aggiornamento chiudere l'applicazione. Il download non so
 
 ## Firme e attendibilità
 
-- La build Windows distribuita localmente include una firma Authenticode **autofirmata**, utile per verificarne l'integrità ma non pubblicamente attendibile.
+- L'asset Windows della release 0.2.1 include una firma Authenticode **autofirmata**, utile per verificarne l'integrità ma non pubblicamente attendibile.
 - La pipeline supporta certificati Windows tramite `WINDOWS_CERTIFICATE_BASE64` e `WINDOWS_CERTIFICATE_PASSWORD`.
 - Su macOS la build usa firma ad-hoc; con certificato Developer ID configura `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD` e `MACOS_CERTIFICATE_NAME`.
 - La notarization Apple richiede anche `APPLE_ID`, `APPLE_PASSWORD` e `APPLE_TEAM_ID`.
