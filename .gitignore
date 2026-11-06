@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Copie proprietarie ed evidenze complete restano locali.
+analysis/target/
+analysis/results/
+
+# Binari 7-Zip scaricati dallo script riproducibile.
+vendor/7zip/
+
+# Certificati, chiavi e pacchetti locali non vanno pubblicati.
+certs/
+*.pfx
+*.p12
+*.key
+release/

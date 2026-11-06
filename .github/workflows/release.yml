@@ -1,0 +1,97 @@
+name: Build e release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-22.04
+            platform: linux
+          - os: macos-13
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONPATH: src
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Installa strumenti di build
+        run: python -m pip install pyinstaller==6.19.0 pillow
+      - name: Installa 7-Zip
+        run: python scripts/fetch_7zip.py --platform ${{ matrix.platform }}
+      - name: Test
+        run: python -m unittest discover -s tests -v
+      - name: Build
+        run: python scripts/build.py
+      - name: Firma Windows con certificato fornito
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path certs -Force | Out-Null
+          [IO.File]::WriteAllBytes("$PWD/certs/signing.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          ./scripts/sign_windows.ps1 -FilePath "$PWD/dist/Wol-rar.exe" -PfxPath "$PWD/certs/signing.pfx" -PfxPassword $env:WINDOWS_CERTIFICATE_PASSWORD
+      - name: Firma macOS ed eventuale notarization
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/sign_macos.sh "dist/Wol-rar.app"
+      - name: Prepara pacchetto
+        run: python scripts/package_release.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wol-rar-${{ matrix.platform }}
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Prepara checksum e licenze
+        run: |
+          rm -f release/*.sha256 release/SHA256SUMS.txt
+          cp 7ZIP-LICENSE.txt release/7ZIP-LICENSE.txt
+          cd release
+          sha256sum Wol-rar-* > SHA256SUMS.txt
+      - name: Firma checksum se configurata
+        env:
+          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          RELEASE_GPG_PASSPHRASE: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+        run: |
+          if [ -n "$RELEASE_GPG_PRIVATE_KEY" ]; then
+            printf '%s' "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import
+            printf '%s' "$RELEASE_GPG_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --detach-sign --armor release/SHA256SUMS.txt
+          fi
+      - name: Pubblica release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" release/* --repo "${GITHUB_REPOSITORY}" --title "Wol-rar ${GITHUB_REF_NAME#v}" --notes-file RELEASE_NOTES.md --verify-tag

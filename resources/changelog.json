@@ -1,0 +1,22 @@
+[
+  {
+    "version": "0.2.0",
+    "date": "2026-11-06",
+    "notes": [
+      "Build native per Windows, Ubuntu e macOS.",
+      "Scheda Novità con note locali e note della release più recente.",
+      "Download diretto degli aggiornamenti da GitHub con verifica SHA-256.",
+      "Supporto ai motori 7-Zip ufficiali per i tre sistemi operativi.",
+      "Pipeline di build e supporto alla firma Windows e macOS."
+    ]
+  },
+  {
+    "version": "0.1.0",
+    "date": "2026-11-06",
+    "notes": [
+      "Primo MVP dell'archiviatore privato.",
+      "Apertura, creazione 7z/ZIP, estrazione sicura e test di integrità.",
+      "Protezione da path traversal e sovrascrittura dei file esistenti."
+    ]
+  }
+]
