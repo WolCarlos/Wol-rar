@@ -133,7 +133,7 @@ class UpdateClient:
 
 def _checksum_for(contents: str, asset_name: str) -> str:
     for line in contents.splitlines():
-        digest, separator, name = line.strip().partition("  ")
-        if separator and name.lstrip("*") == asset_name and re.fullmatch(r"[0-9a-fA-F]{64}", digest):
-            return digest.lower()
+        match = re.fullmatch(r"([0-9a-fA-F]{64})\s+\*?(.+)", line.strip())
+        if match and match.group(2) == asset_name:
+            return match.group(1).lower()
     raise UpdateError(f"Checksum mancante per {asset_name}.")

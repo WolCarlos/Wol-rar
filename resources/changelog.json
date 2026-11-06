@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.2.1",
+    "date": "2026-11-06",
+    "notes": [
+      "Corretta la lettura dei checksum SHA-256 nel formato standard con marcatura binaria.",
+      "Aggiunto un test di regressione per il download pubblico degli aggiornamenti.",
+      "Confermate build e avvio su Windows, Ubuntu e macOS tramite GitHub Actions."
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2026-11-06",
     "notes": [

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from wolrar.app_context import release_asset_name
-from wolrar.update import ReleaseInfo, UpdateClient, UpdateError, is_newer
+from wolrar.update import ReleaseInfo, UpdateClient, UpdateError, _checksum_for, is_newer
 
 
 class UpdateTests(unittest.TestCase):
@@ -59,6 +59,11 @@ class UpdateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises(UpdateError):
                 client.download(release, Path(temporary) / self.asset_name)
+
+    def test_checksum_accepts_text_and_binary_markers(self) -> None:
+        digest = "a" * 64
+        self.assertEqual(_checksum_for(f"{digest}  app.exe\n", "app.exe"), digest)
+        self.assertEqual(_checksum_for(f"{digest} *app.exe\n", "app.exe"), digest)
 
     def test_version_comparison(self) -> None:
         self.assertTrue(is_newer("v0.10.0", "0.9.9"))
