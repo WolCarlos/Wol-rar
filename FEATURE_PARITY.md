@@ -16,7 +16,7 @@
 - GUI rinnovata con tema scuro predefinito e chiaro, icone originali, riepilogo, tabella ordinabile, ricerca, scorciatoie, drag-and-drop e opzioni v2.
 - CLI `list`, `info`, `create`, `extract`, `test`, `repair`, `sfx`, `benchmark`, `formats`, `update-check`, `update-download`, `agent` con JSON.
 - Installer Windows e menu Explorer raggruppato; aggiornamenti HTTPS con SHA-256.
-- Ventinove test unitari e smoke test CLI end-to-end superati localmente su Windows; temi verificati con screenshot reali.
+- Ventinove test unitari e smoke test CLI/GUI superati su Windows, Ubuntu 22.04 e macOS 15 Intel; temi verificati con screenshot reali.
 
 ## Ancora pianificato
 
