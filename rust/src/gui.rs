@@ -33,6 +33,7 @@ enum Tab { Archive, News, Agent }
 
 pub fn run(action: GuiAction, close_after: Option<Instant>) -> Result<(), String> {
     let options = eframe::NativeOptions {
+        renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1100.0, 720.0])
             .with_min_inner_size([860.0, 560.0])
