@@ -25,7 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Installa Rust stable
-        run: rustup toolchain install stable --profile minimal --default true
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
       - name: Dipendenze Ubuntu
         if: matrix.platform == 'linux'
         run: |
