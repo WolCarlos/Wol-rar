@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Callable
 
 from wolrar import __version__
-from wolrar.app_context import release_asset_name
+from wolrar.app_context import update_asset_name
 
 
 REPOSITORY = "WolCarlos/Wol-rar"
@@ -105,12 +105,12 @@ class UpdateClient:
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise UpdateError("Risposta GitHub non valida.") from error
         version_key(release.version)
-        release.asset(release_asset_name())
+        release.asset(update_asset_name())
         release.asset("SHA256SUMS.txt")
         return release
 
     def download(self, release: ReleaseInfo, destination: Path) -> str:
-        asset = release.asset(release_asset_name())
+        asset = release.asset(update_asset_name())
         checksums = self._fetch(release.asset("SHA256SUMS.txt").url, 128 * 1024).decode("utf-8")
         expected = _checksum_for(checksums, asset.name)
         data = self._fetch(asset.url, 512 * 1024 * 1024)

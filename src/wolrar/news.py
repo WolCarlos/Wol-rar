@@ -7,7 +7,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Callable, TypeVar
 
 from wolrar import __version__
-from wolrar.app_context import release_asset_name, resource_path
+from wolrar.app_context import update_asset_name, resource_path
 from wolrar.update import ReleaseInfo, UpdateClient, is_newer
 
 
@@ -120,7 +120,7 @@ class NewsPanel(ttk.Frame):
     def download_update(self) -> None:
         if self.latest is None or not is_newer(self.latest.version):
             return
-        asset_name = release_asset_name()
+        asset_name = update_asset_name()
         destination = filedialog.asksaveasfilename(
             parent=self,
             title="Scarica aggiornamento",

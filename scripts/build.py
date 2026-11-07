@@ -41,7 +41,7 @@ def main() -> None:
         "--add-data",
         f"{ROOT / 'resources' / 'changelog.json'}{separator}resources",
         "--add-data",
-        f"{ROOT / 'assets' / 'wol-rar.png'}{separator}assets",
+        f"{ROOT / 'assets'}{separator}assets",
         "--add-data",
         f"{ROOT / '7ZIP-LICENSE.txt'}{separator}.",
         "--windowed",

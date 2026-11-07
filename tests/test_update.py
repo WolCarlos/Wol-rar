@@ -6,13 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from wolrar.app_context import release_asset_name
+from wolrar.app_context import update_asset_name
 from wolrar.update import ReleaseInfo, UpdateClient, UpdateError, _checksum_for, is_newer
 
 
 class UpdateTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.asset_name = release_asset_name()
+        self.asset_name = update_asset_name()
         self.payload = b"nuovo eseguibile"
         self.digest = hashlib.sha256(self.payload).hexdigest()
         release = {

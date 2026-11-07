@@ -1,10 +1,11 @@
-# Wol-rar 0.2.1
+# Wol-rar 0.3.0
 
-- Corretta la lettura di `SHA256SUMS.txt` nel formato standard `hash *file` prodotto dagli strumenti GNU.
-- Aggiunto un test di regressione per impedire il rifiuto dei checksum validi.
-- Verificato il download pubblico dalla release GitHub con controllo dell'hash prima del salvataggio.
-- Build e smoke test confermati su Windows x64, Ubuntu x64 e macOS.
+- Nuovo **installer Windows per utente**, senza obbligo di amministratore, con collegamenti e disinstallazione pulita.
+- Menu contestuale **Wol-rar** raggruppato in Explorer: Apri, Estrai e Verifica per gli archivi; Comprimi per file e cartelle.
+- Icone originali coordinate per applicazione, installer e comandi, con pila di volumi compressi e fascetta.
+- UX/UI rinnovata: toolbar iconata, filtro istantaneo, riepilogo della compressione, ordinamento colonne, scorciatoie e indicatore di attività.
+- Nuovi comandi CLI `--open`, `--extract`, `--test` e `--create` usati dall'integrazione Explorer.
+- Gli aggiornamenti Windows scaricano direttamente il nuovo installer, sempre con verifica SHA-256.
+- Build e smoke test su Windows, Ubuntu e macOS.
 
-Include tutte le funzionalità della 0.2.0: build native, scheda Novità e aggiornamenti, motori 7-Zip 26.05 e supporto alla firma Windows/macOS. Nessuna telemetria, account o connessione automatica.
-
-La creazione di archivi RAR resta esclusa; RAR è supportato soltanto in lettura tramite 7-Zip.
+Su Windows 11 il menu classico può comparire sotto **Mostra altre opzioni**, in base alle impostazioni di Explorer. Nessuna telemetria o connessione automatica. RAR resta disponibile soltanto in lettura.

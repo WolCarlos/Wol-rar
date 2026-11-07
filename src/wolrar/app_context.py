@@ -43,3 +43,9 @@ def release_asset_name(system: str | None = None) -> str:
     if selected == "linux":
         return "Wol-rar-Linux-x64.tar.gz"
     return "Wol-rar-macOS.tar.gz"
+
+
+def update_asset_name(system: str | None = None) -> str:
+    if current_platform(system) == "windows":
+        return "Wol-rar-Setup-x64.exe"
+    return release_asset_name(system)

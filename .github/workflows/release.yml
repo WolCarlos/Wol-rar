@@ -42,6 +42,30 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: ./dist/Wol-rar.exe --smoke-test
+      - name: Firma applicazione Windows con certificato fornito
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path certs -Force | Out-Null
+          [IO.File]::WriteAllBytes("$PWD/certs/signing.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          ./scripts/sign_windows.ps1 -FilePath "$PWD/dist/Wol-rar.exe" -PfxPath "$PWD/certs/signing.pfx" -PfxPassword $env:WINDOWS_CERTIFICATE_PASSWORD
+      - name: Firma sviluppo applicazione Windows
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 == ''
+        shell: pwsh
+        run: ./scripts/sign_windows.ps1 -FilePath "$PWD/dist/Wol-rar.exe" -CreateSelfSigned
+      - name: Build installer Windows
+        if: matrix.platform == 'windows'
+        run: |
+          python scripts/install_inno.py
+          python scripts/build_installer.py
+      - name: Firma installer Windows con certificato fornito
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        run: ./scripts/sign_windows.ps1 -FilePath "$PWD/release/Wol-rar-Setup-x64.exe" -PfxPath "$PWD/certs/signing.pfx" -PfxPassword $env:WINDOWS_CERTIFICATE_PASSWORD
+      - name: Firma sviluppo installer Windows
+        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 == ''
+        shell: pwsh
+        run: ./scripts/sign_windows.ps1 -FilePath "$PWD/release/Wol-rar-Setup-x64.exe" -CreateSelfSigned
       - name: Smoke test Ubuntu
         if: matrix.platform == 'linux'
         run: |
@@ -51,13 +75,6 @@ jobs:
       - name: Smoke test macOS
         if: matrix.platform == 'macos'
         run: ./dist/Wol-rar.app/Contents/MacOS/Wol-rar --smoke-test
-      - name: Firma Windows con certificato fornito
-        if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path certs -Force | Out-Null
-          [IO.File]::WriteAllBytes("$PWD/certs/signing.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
-          ./scripts/sign_windows.ps1 -FilePath "$PWD/dist/Wol-rar.exe" -PfxPath "$PWD/certs/signing.pfx" -PfxPassword $env:WINDOWS_CERTIFICATE_PASSWORD
       - name: Firma macOS ed eventuale notarization
         if: matrix.platform == 'macos'
         shell: bash

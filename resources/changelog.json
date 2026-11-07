@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2026-11-07",
+    "notes": [
+      "Nuovo installer Windows per utente con collegamenti e disinstallazione pulita.",
+      "Menu Wol-rar raggruppato nel tasto destro di Explorer, con azioni pertinenti a file, archivi e cartelle.",
+      "Nuova famiglia di icone originali per app, installer e comandi.",
+      "Interfaccia rinnovata con toolbar iconata, filtro, riepilogo compressione e ordinamento delle colonne.",
+      "Gli aggiornamenti Windows scaricano ora direttamente il nuovo installer."
+    ]
+  },
+  {
     "version": "0.2.1",
     "date": "2026-11-06",
     "notes": [

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wol-rar"
-version = "0.2.1"
+version = "0.3.0"
 description = "Archiviatore privato per Windows, Ubuntu e macOS"
 requires-python = ">=3.12"
 license = {text = "Proprietary"}
