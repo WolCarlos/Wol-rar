@@ -1,91 +1,96 @@
 # Wol-rar
 
-Archiviatore privato per **Windows x64, Ubuntu x64 e macOS**, con interfaccia Tkinter e motore 7-Zip 26.05. Nessun account, pubblicità, tracking o telemetria.
+Archiviatore privato **scritto in Rust** per Windows x64, Ubuntu x64 e macOS. Include GUI `eframe`, CLI agent-first e nessun account, pubblicità, tracking o telemetria.
 
 ## Funzionalità
 
-- Apertura ed elenco di archivi 7z, ZIP, RAR e altri formati supportati da 7-Zip.
-- Creazione di archivi **7z e ZIP** con livello di compressione selezionabile e senza sovrascrittura automatica.
-- Estrazione con controlli contro path traversal, percorsi assoluti e flussi NTFS; i file esistenti vengono mantenuti.
-- Test di integrità degli archivi.
-- UX con toolbar iconata, filtro istantaneo, riepilogo compressione, ordinamento colonne e scorciatoie.
-- Scheda **Novità e aggiornamenti** con changelog locale e note della release più recente.
-- Download diretto dell'aggiornamento per il sistema corrente, con verifica SHA-256 obbligatoria.
-- RAR soltanto in lettura: il progetto non ricrea l'algoritmo proprietario di compressione RAR.
+- Creazione **7z, ZIP, TAR, TAR.GZ, TAR.BZ2 e TAR.XZ** senza sovrascrittura automatica.
+- Apertura ed elenco di 7z, ZIP, RAR e TAR compressi; RAR soltanto in lettura tramite unRAR.
+- Estrazione con rifiuto di path traversal, percorsi assoluti, ADS e file esistenti.
+- Verifica di integrità tramite decodifica completa in una directory temporanea.
+- Opzioni AES-256 per ZIP e 7z, con password solo su stdin o campo volatile.
+- GUI con filtro, operazioni in thread separato, Novità e sezione Agenti AI.
+- Aggiornamenti espliciti da GitHub Releases con HTTPS, limite di download e verifica SHA-256.
+- Installer Windows, binario portabile e menu Explorer raggruppato con comandi pertinenti.
 
-Le operazioni sugli archivi sono locali. La rete viene utilizzata soltanto quando l'utente preme **Controlla aggiornamenti** o avvia il download; la richiesta contiene unicamente lo User-Agent `Wol-rar/<versione>` necessario all'API GitHub.
+La copertura aggiornata e le funzionalità ancora pianificate sono in [FEATURE_PARITY.md](FEATURE_PARITY.md).
 
-## Installer e integrazione Windows
+## Agenti AI e CLI
 
-`Wol-rar-Setup-x64.exe` installa l'app nel profilo utente, senza richiedere amministratore. Include:
+Tutte le funzioni hanno una CLI equivalente con `--json`. Il comando `wol-rar agent` stampa il prompt compatto da copiare in `AGENTS.md`, disponibile anche nella scheda **Agenti AI**.
 
-- collegamento nel menu Start e collegamento desktop opzionale;
-- disinstallatore con rimozione delle integrazioni create;
-- menu **Wol-rar** raggruppato nel tasto destro di Explorer;
-- **Apri, Estrai in una nuova cartella e Verifica integrità** per gli archivi;
-- **Comprimi in un archivio 7z o ZIP** per file e cartelle;
-- icone coordinate per app e comandi, originali e non copiate da WinRAR.
-
-Su Windows 11 il menu classico può comparire sotto **Mostra altre opzioni**, in base alle impostazioni di Explorer. Il programma non cambia l'applicazione predefinita associata agli archivi.
-
-È disponibile anche il binario portabile `Wol-rar-Windows-x64.exe`, che non modifica il registro. Ubuntu e macOS usano rispettivamente `Wol-rar-Linux-x64.tar.gz` e `Wol-rar-macOS.tar.gz`.
-
-Prima di installare un aggiornamento chiudere l'applicazione. Il download dalla scheda Novità non avvia automaticamente l'installer.
-
-## Firme e attendibilità
-
-- Gli asset Windows della release 0.3.0 includono una firma Authenticode **autofirmata**, utile per verificarne l'integrità ma non pubblicamente attendibile.
-- La pipeline supporta certificati Windows tramite `WINDOWS_CERTIFICATE_BASE64` e `WINDOWS_CERTIFICATE_PASSWORD`.
-- Su macOS la build usa firma ad-hoc; con certificato Developer ID configura `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD` e `MACOS_CERTIFICATE_NAME`.
-- La notarization Apple richiede anche `APPLE_ID`, `APPLE_PASSWORD` e `APPLE_TEAM_ID`.
-- `SHA256SUMS.txt` copre tutti i pacchetti. Se configurata, la chiave `RELEASE_GPG_PRIVATE_KEY` con `RELEASE_GPG_PASSPHRASE` produce anche la firma OpenPGP dei checksum.
-
-Per eliminare gli avvisi SmartScreen e Gatekeeper servono certificati pubblici e, per macOS, la notarization: non usare certificati autofirmati come se fossero pubblicamente attendibili.
-
-## Sviluppo
-
-Richiede Python 3.12 o successivo.
-
-```bash
-python scripts/fetch_7zip.py
-PYTHONPATH=src python -m unittest discover -s tests -v
-PYTHONPATH=src python -m wolrar
+```text
+wol-rar formats --json
+wol-rar list ARCHIVIO --json
+wol-rar create ORIGINE --output ARCHIVIO.7z --level 5 --json
+wol-rar extract ARCHIVIO --destination CARTELLA --json
+wol-rar test ARCHIVIO --json
+wol-rar update-check --json
+wol-rar update-download CARTELLA --json
+wol-rar agent
 ```
 
-Build nativa sul sistema corrente:
+Le password non vanno mai negli argomenti o nei log. Aggiungere `--password-stdin` e fornire il segreto soltanto su stdin.
+
+## Download e installazione
+
+Gli asset sono in [GitHub Releases](https://github.com/WolCarlos/Wol-rar/releases).
+
+- **Windows:** `Wol-rar-Setup-x64.exe`, installer per utente senza amministratore; `Wol-rar-Windows-x64.exe` è il portabile.
+- **Ubuntu:** estrarre `Wol-rar-Linux-x64.tar.gz` e avviare `./Wol-rar`.
+- **macOS:** estrarre `Wol-rar-macOS.tar.gz` e aprire `Wol-rar.app`.
+
+L'installer aggiunge un unico menu **Wol-rar** nel tasto destro: Apri/Estrai/Verifica per archivi e Comprimi per file e cartelle. Su Windows 11 può comparire sotto **Mostra altre opzioni**. Le associazioni predefinite non vengono cambiate. La disinstallazione rimuove le integrazioni create.
+
+Le operazioni sugli archivi sono locali. La rete viene usata solo quando l'utente richiede controllo o download degli aggiornamenti, con User-Agent `Wol-rar/<versione>`.
+
+## Firme
+
+- App e installer Windows includono una firma Authenticode **autofirmata**, non pubblicamente attendibile.
+- La pipeline supporta `WINDOWS_CERTIFICATE_BASE64` e `WINDOWS_CERTIFICATE_PASSWORD`.
+- macOS usa firma ad-hoc; per Developer ID e notarization configurare `MACOS_CERTIFICATE_BASE64`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_CERTIFICATE_NAME`, `APPLE_ID`, `APPLE_PASSWORD` e `APPLE_TEAM_ID`.
+- `SHA256SUMS.txt` copre tutti gli asset; `RELEASE_GPG_PRIVATE_KEY` e `RELEASE_GPG_PASSPHRASE` abilitano anche la firma OpenPGP.
+
+## Sviluppo Rust
+
+Richiede Rust stable 1.95 o successivo e, su Windows, il linker MSVC.
 
 ```bash
-python -m pip install pyinstaller==6.19.0 pillow
-python scripts/make_icon.py
-PYTHONPATH=src python scripts/build.py
-PYTHONPATH=src python scripts/package_release.py
+cargo test --manifest-path rust/Cargo.toml
+cargo run --manifest-path rust/Cargo.toml
+cargo build --release --manifest-path rust/Cargo.toml
+```
+
+Build e pacchetto sul sistema corrente:
+
+```bash
+python scripts/build_rust.py
+python scripts/package_release.py
 ```
 
 Installer Windows con Inno Setup 7.1.1:
 
 ```bash
 python scripts/install_inno.py
-PYTHONPATH=src python scripts/build_installer.py
+python scripts/build_installer.py
 ```
 
-Comandi usati anche da Explorer:
+Smoke test CLI e GUI:
 
-```text
-Wol-rar.exe --open ARCHIVIO
-Wol-rar.exe --extract ARCHIVIO
-Wol-rar.exe --test ARCHIVIO
-Wol-rar.exe --create FILE_O_CARTELLA
+```bash
+cargo run --manifest-path rust/Cargo.toml -- --smoke-test
+cargo run --manifest-path rust/Cargo.toml -- --gui-smoke-test
 ```
 
-PyInstaller non effettua cross-compile: Windows, Ubuntu e macOS vengono compilati sui rispettivi runner tramite `.github/workflows/release.yml`.
+La workflow `.github/workflows/release.yml` installa Rust stable, esegue test e build native su Windows, Ubuntu 22.04 e macOS 15 Intel, firma quando configurato e pubblica gli asset.
 
 ## Rilascio
 
-1. Aggiornare `__version__` in `src/wolrar/__init__.py`, `pyproject.toml`, `scripts/windows-version.txt`, `resources/changelog.json` e `RELEASE_NOTES.md`.
-2. Eseguire tutti i test.
-3. Creare e pubblicare un tag `vX.Y.Z`.
-4. La workflow compila i tre sistemi e l'installer, firma quando i segreti sono configurati e pubblica gli asset con `SHA256SUMS.txt`.
+1. Aggiornare versione in `rust/Cargo.toml`, `rust/build.rs`, `scripts/build_rust.py`, `scripts/package_release.py`, `resources/changelog.json` e `RELEASE_NOTES.md`.
+2. Aggiornare `FEATURE_PARITY.md` senza dichiarare funzionalità non testate.
+3. Eseguire test, build e smoke test.
+4. Creare una tag `vX.Y.Z`.
 
 ## Licenze
 
-Il codice applicativo è source-available e non è concesso con una licenza open-source. I componenti 7-Zip mantengono le rispettive licenze LGPL/BSD/unRAR, riportate in `7ZIP-LICENSE.txt` e accessibili dalla scheda **Novità → Licenze** dell'applicazione.
+Il codice applicativo è source-available e non è concesso con licenza open-source. Dipendenze e restrizione unRAR sono documentate in `THIRD_PARTY_NOTICES.md`; le versioni esatte sono in `rust/Cargo.lock`.

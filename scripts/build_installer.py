@@ -4,10 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from wolrar import __version__
-
-
 ROOT = Path(__file__).resolve().parents[1]
+VERSION = "0.4.0"
 
 
 def find_compiler() -> Path:
@@ -34,7 +32,7 @@ def main() -> None:
         [
             str(compiler),
             "--no-ide-signtools",
-            f"--define=AppVersion={__version__}",
+            f"--define=AppVersion={VERSION}",
             str(ROOT / "installer" / "wol-rar.iss"),
         ],
         cwd=ROOT / "installer",

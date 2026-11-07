@@ -3,11 +3,15 @@ __pycache__/
 .venv/
 build/
 dist/
+rust/target/
 *.egg-info/
 
 # Copie proprietarie ed evidenze complete restano locali.
 analysis/target/
 analysis/results/
+analysis/reference/
+analysis/rust-check/
+analysis/rar-check/
 
 # Binari 7-Zip scaricati dallo script riproducibile.
 vendor/7zip/

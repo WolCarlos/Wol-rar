@@ -42,7 +42,7 @@ Name: "contextmenu"; Description: "Aggiungi il menu Wol-rar al tasto destro di E
 
 [Files]
 Source: "..\dist\Wol-rar.exe"; DestDir: "{app}"; Flags: ignoreversion signcheck
-Source: "..\7ZIP-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\wol-rar.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 Source: "..\assets\menu-*.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
@@ -67,13 +67,13 @@ Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar"; ValueType: string; ValueName: "SubCommands"; ValueData: ""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\01Apri"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Apri con Wol-rar"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\01Apri"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\assets\menu-open.ico"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\01Apri\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --open ""%1"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\01Apri\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --gui --open ""%1"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\02Estrai"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Estrai in una nuova cartella"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\02Estrai"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\assets\menu-extract.ico"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\02Estrai\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --extract ""%1"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\02Estrai\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --gui --extract ""%1"""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\03Verifica"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Verifica integrità"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\03Verifica"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\assets\menu-test.ico"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\03Verifica\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --test ""%1"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\SystemFileAssociations\{#ArchiveExtension}\shell\Wol-rar\shell\03Verifica\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --gui --test ""%1"""; Tasks: contextmenu
 #endsub
 #emit ArchiveMenu
 #undef ArchiveExtension
@@ -110,7 +110,7 @@ Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar"; ValueType: 
 Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar"; ValueType: string; ValueName: "SubCommands"; ValueData: ""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar\shell\01Comprimi"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Comprimi in un archivio 7z o ZIP"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar\shell\01Comprimi"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\assets\menu-create.ico"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar\shell\01Comprimi\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --create ""%1"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\{#ShellTarget}\shell\Wol-rar\shell\01Comprimi\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --gui --create ""%1"""; Tasks: contextmenu
 #endsub
 #emit CompressMenu
 #undef ShellTarget
@@ -124,4 +124,4 @@ Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar"; Value
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar"; ValueType: string; ValueName: "SubCommands"; ValueData: ""; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar\shell\01Comprimi"; ValueType: string; ValueName: "MUIVerb"; ValueData: "Comprimi il contenuto di questa cartella"; Tasks: contextmenu
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar\shell\01Comprimi"; ValueType: string; ValueName: "Icon"; ValueData: "{app}\assets\menu-create.ico"; Tasks: contextmenu
-Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar\shell\01Comprimi\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --create ""%V"""; Tasks: contextmenu
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Wol-rar\shell\01Comprimi\command"; ValueType: string; ValueData: """{app}\Wol-rar.exe"" --gui --create ""%V"""; Tasks: contextmenu

@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.4.0",
+    "date": "2026-11-07",
+    "notes": [
+      "Applicazione riscritta in Rust con GUI eframe e senza runtime Python.",
+      "Architettura agent-first con CLI per tutte le funzioni e output JSON.",
+      "Prompt per agenti AI disponibile con wol-rar agent e nella scheda dedicata.",
+      "Motore per 7z, ZIP, RAR in sola lettura e TAR compressi, con estrazione sicura.",
+      "Opzioni AES-256, aggiornamenti verificati e installer aggiornato ai comandi Rust."
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2026-11-07",
     "notes": [

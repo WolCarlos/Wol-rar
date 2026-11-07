@@ -1,11 +1,11 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-set "PYTHONPATH=%~dp0src"
-where py >nul 2>nul
-if %errorlevel%==0 (
-    py -3 -m wolrar
-) else (
-    python -m wolrar
+if not exist "rust\target\release\wol-rar.exe" (
+    cargo build --release --manifest-path rust\Cargo.toml
+    if errorlevel 1 goto :error
 )
-if errorlevel 1 pause
+start "" "rust\target\release\wol-rar.exe"
+exit /b 0
+:error
+pause

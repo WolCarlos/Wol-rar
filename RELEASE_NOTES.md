@@ -1,11 +1,13 @@
-# Wol-rar 0.3.0
+# Wol-rar 0.4.0
 
-- Nuovo **installer Windows per utente**, senza obbligo di amministratore, con collegamenti e disinstallazione pulita.
-- Menu contestuale **Wol-rar** raggruppato in Explorer: Apri, Estrai e Verifica per gli archivi; Comprimi per file e cartelle.
-- Icone originali coordinate per applicazione, installer e comandi, con pila di volumi compressi e fascetta.
-- UX/UI rinnovata: toolbar iconata, filtro istantaneo, riepilogo della compressione, ordinamento colonne, scorciatoie e indicatore di attività.
-- Nuovi comandi CLI `--open`, `--extract`, `--test` e `--create` usati dall'integrazione Explorer.
-- Gli aggiornamenti Windows scaricano direttamente il nuovo installer, sempre con verifica SHA-256.
-- Build e smoke test su Windows, Ubuntu e macOS.
+- Migrazione dell'applicazione a **Rust**, senza runtime Python, con GUI `eframe` e build native Cargo.
+- Nuova architettura **agent-first**: tutte le operazioni hanno CLI equivalente e output JSON opzionale.
+- Nuovo comando `wol-rar agent` e scheda Agenti AI con prompt compatto per `AGENTS.md`.
+- Motore per 7z, ZIP, RAR in sola lettura, TAR, TAR.GZ, TAR.BZ2 e TAR.XZ, con estrazione sicura e test di integrità.
+- Opzioni AES-256 per ZIP e 7z, password solo su stdin o campo volatile.
+- Aggiornamenti GitHub con HTTPS e verifica SHA-256; su Windows viene scaricato l'installer.
+- Installer aggiornato ai comandi Rust `--gui`, con menu Explorer raggruppato e disinstallazione pulita.
+- Icona e metadati di versione incorporati nell'eseguibile Rust Windows.
+- Test unitari e smoke test CLI/GUI su Windows, Ubuntu e macOS.
 
-Su Windows 11 il menu classico può comparire sotto **Mostra altre opzioni**, in base alle impostazioni di Explorer. Nessuna telemetria o connessione automatica. RAR resta disponibile soltanto in lettura.
+Le funzionalità avanzate ancora pianificate sono elencate in `FEATURE_PARITY.md`, senza dichiarare parità non verificata. RAR resta disponibile soltanto in lettura.

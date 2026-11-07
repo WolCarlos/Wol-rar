@@ -1,4 +1,4 @@
-name: Build e release
+name: Build e release Rust
 
 on:
   push:
@@ -20,28 +20,25 @@ jobs:
             platform: macos
     runs-on: ${{ matrix.os }}
     env:
-      PYTHONPATH: src
       WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
       WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-      - name: Installa strumenti di build
-        run: python -m pip install pyinstaller==6.19.0 pillow
-      - name: Installa 7-Zip
-        run: python scripts/fetch_7zip.py --platform ${{ matrix.platform }}
-      - name: Test
-        run: python -m unittest discover -s tests -v
-      - name: Build
-        run: python scripts/build.py
+      - name: Installa Rust stable
+        run: rustup toolchain install stable --profile minimal --default true
+      - name: Dipendenze Ubuntu
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgtk-3-dev
+      - name: Test Rust
+        run: cargo test --manifest-path rust/Cargo.toml
+      - name: Build Rust
+        run: python scripts/build_rust.py
       - name: Smoke test Windows
         if: matrix.platform == 'windows'
         shell: pwsh
-        run: ./dist/Wol-rar.exe --smoke-test
+        run: ./dist/Wol-rar.exe --gui-smoke-test
       - name: Firma applicazione Windows con certificato fornito
         if: matrix.platform == 'windows' && env.WINDOWS_CERTIFICATE_BASE64 != ''
         shell: pwsh
@@ -69,12 +66,11 @@ jobs:
       - name: Smoke test Ubuntu
         if: matrix.platform == 'linux'
         run: |
-          sudo apt-get update
           sudo apt-get install -y xvfb
-          xvfb-run -a ./dist/Wol-rar --smoke-test
+          xvfb-run -a ./dist/Wol-rar --gui-smoke-test
       - name: Smoke test macOS
         if: matrix.platform == 'macos'
-        run: ./dist/Wol-rar.app/Contents/MacOS/Wol-rar --smoke-test
+        run: ./dist/Wol-rar.app/Contents/MacOS/Wol-rar --gui-smoke-test
       - name: Firma macOS ed eventuale notarization
         if: matrix.platform == 'macos'
         shell: bash
@@ -109,7 +105,7 @@ jobs:
       - name: Prepara checksum e licenze
         run: |
           rm -f release/*.sha256 release/SHA256SUMS.txt
-          cp 7ZIP-LICENSE.txt release/7ZIP-LICENSE.txt
+          cp THIRD_PARTY_NOTICES.md release/THIRD_PARTY_NOTICES.md
           cd release
           sha256sum Wol-rar-* > SHA256SUMS.txt
       - name: Firma checksum se configurata
