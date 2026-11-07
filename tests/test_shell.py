@@ -11,7 +11,7 @@ from wolrar.shell import suggested_archive_path, suggested_extract_directory, un
 class ShellTests(unittest.TestCase):
     def test_unique_paths_and_suggestions(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             source = root / "documento.txt"
             source.write_text("test", encoding="utf-8")
             archive = root / "documento.7z"
