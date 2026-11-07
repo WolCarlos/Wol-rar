@@ -15,10 +15,16 @@ pub struct CreateOptions {
     pub level: u32,
     pub password: Option<Zeroizing<String>>,
     pub solid: bool,
+    pub comment: Option<String>,
 }
 
 impl Default for CreateOptions {
     fn default() -> Self {
-        Self { level: 5, password: None, solid: true }
+        Self {
+            level: 5,
+            password: None,
+            solid: true,
+            comment: None,
+        }
     }
 }

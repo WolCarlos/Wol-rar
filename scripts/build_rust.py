@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 
 def main() -> None:
@@ -36,8 +36,8 @@ def main() -> None:
             "<key>CFBundleName</key><string>Wol-rar</string>"
             "<key>CFBundleDisplayName</key><string>Wol-rar</string>"
             "<key>CFBundleIdentifier</key><string>com.wolcarlos.wolrar</string>"
-            "<key>CFBundleVersion</key><string>0.4.0</string>"
-            "<key>CFBundleShortVersionString</key><string>0.4.0</string>"
+            "<key>CFBundleVersion</key><string>0.5.0</string>"
+            "<key>CFBundleShortVersionString</key><string>0.5.0</string>"
             "<key>CFBundleExecutable</key><string>Wol-rar</string>"
             "<key>CFBundleIconFile</key><string>wol-rar.png</string>"
             "<key>CFBundlePackageType</key><string>APPL</string>"

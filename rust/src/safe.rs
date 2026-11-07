@@ -34,7 +34,14 @@ mod tests {
 
     #[test]
     fn rejects_traversal_absolute_and_ads() {
-        for value in ["../fuori", "a/../../fuori", "/assoluto", "C:/Windows/x", "file:ads", ""] {
+        for value in [
+            "../fuori",
+            "a/../../fuori",
+            "/assoluto",
+            "C:/Windows/x",
+            "file:ads",
+            "",
+        ] {
             assert!(validate_member_path(value).is_err(), "accepted {value}");
         }
     }

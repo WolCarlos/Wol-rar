@@ -13,47 +13,89 @@ pub struct RustArchiveEngine;
 impl RustArchiveEngine {
     pub fn list(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, ArchiveError> {
         match ArchiveFormat::detect(path)? {
+            ArchiveFormat::WolRar => crate::wolformat::list(path),
             ArchiveFormat::Zip => list_zip(path, password),
             ArchiveFormat::SevenZip => list_7z(path, password),
             ArchiveFormat::Rar => list_rar(path, password),
-            ArchiveFormat::Tar | ArchiveFormat::TarGz | ArchiveFormat::TarBz2 | ArchiveFormat::TarXz => list_tar(path),
+            ArchiveFormat::Tar
+            | ArchiveFormat::TarGz
+            | ArchiveFormat::TarBz2
+            | ArchiveFormat::TarXz => list_tar(path),
         }
     }
 
-    pub fn create(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Result<(), ArchiveError> {
-        if path.exists() { return Err(ArchiveError::DestinationExists(path.to_owned())); }
-        if sources.is_empty() { return Err(ArchiveError::MissingSource(path.to_owned())); }
-        if options.level > 9 { return Err(ArchiveError::InvalidCompressionLevel(options.level)); }
-        for source in sources {
-            if !source.exists() { return Err(ArchiveError::MissingSource(source.to_owned())); }
-            if source.is_dir() && path.starts_with(source) { return Err(ArchiveError::ArchiveInsideSource); }
+    pub fn create(
+        path: &Path,
+        sources: &[PathBuf],
+        options: &CreateOptions,
+    ) -> Result<(), ArchiveError> {
+        if path.exists() {
+            return Err(ArchiveError::DestinationExists(path.to_owned()));
         }
-        if let Some(parent) = path.parent() { fs::create_dir_all(parent)?; }
+        if sources.is_empty() {
+            return Err(ArchiveError::MissingSource(path.to_owned()));
+        }
+        if options.level > 9 {
+            return Err(ArchiveError::InvalidCompressionLevel(options.level));
+        }
+        for source in sources {
+            if !source.exists() {
+                return Err(ArchiveError::MissingSource(source.to_owned()));
+            }
+            if source.is_dir() && path.starts_with(source) {
+                return Err(ArchiveError::ArchiveInsideSource);
+            }
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         match ArchiveFormat::detect(path)? {
+            ArchiveFormat::WolRar => crate::wolformat::create(path, sources, options).map(|_| ()),
             ArchiveFormat::Zip => create_zip(path, sources, options),
             ArchiveFormat::SevenZip => create_7z(path, sources, options),
-            ArchiveFormat::Tar | ArchiveFormat::TarGz | ArchiveFormat::TarBz2 | ArchiveFormat::TarXz => create_tar(path, sources),
-            ArchiveFormat::Rar => Err(ArchiveError::UnsupportedFormat("La creazione RAR non è consentita".into())),
+            ArchiveFormat::Tar
+            | ArchiveFormat::TarGz
+            | ArchiveFormat::TarBz2
+            | ArchiveFormat::TarXz => create_tar(path, sources),
+            ArchiveFormat::Rar => Err(ArchiveError::UnsupportedFormat(
+                "La creazione RAR non è consentita".into(),
+            )),
         }
     }
 
-    pub fn extract(path: &Path, destination: &Path, password: Option<&str>) -> Result<(), ArchiveError> {
+    pub fn extract(
+        path: &Path,
+        destination: &Path,
+        password: Option<&str>,
+    ) -> Result<(), ArchiveError> {
         if destination.exists() && !destination.is_dir() {
-            return Err(ArchiveError::Message("La destinazione non è una cartella".into()));
+            return Err(ArchiveError::Message(
+                "La destinazione non è una cartella".into(),
+            ));
         }
         fs::create_dir_all(destination)?;
         match ArchiveFormat::detect(path)? {
+            ArchiveFormat::WolRar => crate::wolformat::extract(path, destination, password),
             ArchiveFormat::Zip => extract_zip(path, destination, password),
             ArchiveFormat::SevenZip => {
-                for entry in list_7z(path, password)? { validate_member_path(&entry.path)?; }
+                for entry in list_7z(path, password)? {
+                    validate_member_path(&entry.path)?;
+                }
                 match password {
-                    Some(value) => sevenz_rust2::decompress_file_with_password(path, destination, value.into())?,
+                    Some(value) => sevenz_rust2::decompress_file_with_password(
+                        path,
+                        destination,
+                        value.into(),
+                    )?,
                     None => sevenz_rust2::decompress_file(path, destination)?,
                 }
                 Ok(())
             }
             ArchiveFormat::Rar => extract_rar(path, destination, password),
-            ArchiveFormat::Tar | ArchiveFormat::TarGz | ArchiveFormat::TarBz2 | ArchiveFormat::TarXz => extract_tar(path, destination),
+            ArchiveFormat::Tar
+            | ArchiveFormat::TarGz
+            | ArchiveFormat::TarBz2
+            | ArchiveFormat::TarXz => extract_tar(path, destination),
         }
     }
 
@@ -86,7 +128,11 @@ fn list_zip(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, Ar
     Ok(entries)
 }
 
-fn create_zip(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Result<(), ArchiveError> {
+fn create_zip(
+    path: &Path,
+    sources: &[PathBuf],
+    options: &CreateOptions,
+) -> Result<(), ArchiveError> {
     let file = File::create_new(path)?;
     let mut writer = zip::ZipWriter::new(file);
     let mut options_zip = zip::write::SimpleFileOptions::default()
@@ -99,7 +145,11 @@ fn create_zip(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Resu
         let base = source.parent().unwrap_or(source);
         for item in WalkDir::new(source).follow_links(false) {
             let item = item?;
-            let relative = item.path().strip_prefix(base)?.to_string_lossy().replace('\\', "/");
+            let relative = item
+                .path()
+                .strip_prefix(base)?
+                .to_string_lossy()
+                .replace('\\', "/");
             if item.file_type().is_dir() {
                 writer.add_directory(format!("{relative}/"), options_zip)?;
             } else if item.file_type().is_file() {
@@ -113,7 +163,11 @@ fn create_zip(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Resu
     Ok(())
 }
 
-fn extract_zip(path: &Path, destination: &Path, password: Option<&str>) -> Result<(), ArchiveError> {
+fn extract_zip(
+    path: &Path,
+    destination: &Path,
+    password: Option<&str>,
+) -> Result<(), ArchiveError> {
     let mut archive = zip::ZipArchive::new(File::open(path)?)?;
     for index in 0..archive.len() {
         let mut file = if let Some(password) = password {
@@ -121,13 +175,17 @@ fn extract_zip(path: &Path, destination: &Path, password: Option<&str>) -> Resul
         } else {
             archive.by_index(index)?
         };
-        let relative = file.enclosed_name().ok_or_else(|| ArchiveError::UnsafePath("nome ZIP non sicuro".into()))?;
+        let relative = file
+            .enclosed_name()
+            .ok_or_else(|| ArchiveError::UnsafePath("nome ZIP non sicuro".into()))?;
         validate_member_path(&relative.to_string_lossy())?;
         let output = safe_destination(destination, &relative.to_string_lossy())?;
         if file.is_dir() {
             fs::create_dir_all(output)?;
         } else {
-            if let Some(parent) = output.parent() { fs::create_dir_all(parent)?; }
+            if let Some(parent) = output.parent() {
+                fs::create_dir_all(parent)?;
+            }
             let mut target = File::options().write(true).create_new(true).open(output)?;
             std::io::copy(&mut file, &mut target)?;
         }
@@ -138,17 +196,26 @@ fn extract_zip(path: &Path, destination: &Path, password: Option<&str>) -> Resul
 fn list_7z(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, ArchiveError> {
     let password = sevenz_rust2::Password::from(password.unwrap_or_default());
     let reader = sevenz_rust2::ArchiveReader::open(path, password)?;
-    Ok(reader.archive().files.iter().map(|entry| ArchiveEntry {
-        path: entry.name.clone(),
-        size: entry.size,
-        packed_size: entry.compressed_size,
-        modified: format!("{:?}", entry.last_modified_date),
-        directory: entry.is_directory,
-        encrypted: false,
-    }).collect())
+    Ok(reader
+        .archive()
+        .files
+        .iter()
+        .map(|entry| ArchiveEntry {
+            path: entry.name.clone(),
+            size: entry.size,
+            packed_size: entry.compressed_size,
+            modified: format!("{:?}", entry.last_modified_date),
+            directory: entry.is_directory,
+            encrypted: false,
+        })
+        .collect())
 }
 
-fn create_7z(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Result<(), ArchiveError> {
+fn create_7z(
+    path: &Path,
+    sources: &[PathBuf],
+    options: &CreateOptions,
+) -> Result<(), ArchiveError> {
     let mut writer = sevenz_rust2::ArchiveWriter::create(path)?;
     if let Some(password) = &options.password {
         writer.set_content_methods(vec![
@@ -160,7 +227,11 @@ fn create_7z(path: &Path, sources: &[PathBuf], options: &CreateOptions) -> Resul
         let base = source.parent().unwrap_or(source);
         for item in WalkDir::new(source).follow_links(false) {
             let item = item?;
-            let relative = item.path().strip_prefix(base)?.to_string_lossy().replace('\\', "/");
+            let relative = item
+                .path()
+                .strip_prefix(base)?
+                .to_string_lossy()
+                .replace('\\', "/");
             let entry = sevenz_rust2::ArchiveEntry::from_path(item.path(), relative);
             if item.file_type().is_dir() {
                 writer.push_archive_entry(entry, None::<File>)?;
@@ -195,7 +266,11 @@ fn list_rar(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, Ar
     Ok(entries)
 }
 
-fn extract_rar(path: &Path, destination: &Path, password: Option<&str>) -> Result<(), ArchiveError> {
+fn extract_rar(
+    path: &Path,
+    destination: &Path,
+    password: Option<&str>,
+) -> Result<(), ArchiveError> {
     let mut archive = match password {
         Some(value) => unrar::Archive::with_password(path, value).open_for_processing()?,
         None => unrar::Archive::new(path).open_for_processing()?,
@@ -261,7 +336,9 @@ fn extract_tar(path: &Path, destination: &Path) -> Result<(), ArchiveError> {
         if entry.header().entry_type().is_dir() {
             fs::create_dir_all(output)?;
         } else if entry.header().entry_type().is_file() {
-            if let Some(parent) = output.parent() { fs::create_dir_all(parent)?; }
+            if let Some(parent) = output.parent() {
+                fs::create_dir_all(parent)?;
+            }
             let mut target = File::options().write(true).create_new(true).open(output)?;
             std::io::copy(&mut entry, &mut target)?;
         }
@@ -283,8 +360,14 @@ fn open_tar_reader(path: &Path) -> Result<Box<dyn Read>, ArchiveError> {
 fn tar_compression_writer(path: &Path, file: File) -> Result<Box<dyn Write>, ArchiveError> {
     Ok(match ArchiveFormat::detect(path)? {
         ArchiveFormat::Tar => Box::new(file),
-        ArchiveFormat::TarGz => Box::new(flate2::write::GzEncoder::new(file, flate2::Compression::default())),
-        ArchiveFormat::TarBz2 => Box::new(bzip2::write::BzEncoder::new(file, bzip2::Compression::default())),
+        ArchiveFormat::TarGz => Box::new(flate2::write::GzEncoder::new(
+            file,
+            flate2::Compression::default(),
+        )),
+        ArchiveFormat::TarBz2 => Box::new(bzip2::write::BzEncoder::new(
+            file,
+            bzip2::Compression::default(),
+        )),
         ArchiveFormat::TarXz => Box::new(xz2::write::XzEncoder::new(file, 6)),
         _ => return Err(ArchiveError::UnsupportedFormat(path.display().to_string())),
     })
@@ -302,13 +385,25 @@ mod tests {
             std::fs::create_dir(&source).unwrap();
             std::fs::write(source.join("documento àèé.txt"), "contenuto riservato").unwrap();
             let archive = temp.path().join(format!("prova.{extension}"));
-            RustArchiveEngine::create(&archive, &[source.clone()], &CreateOptions::default()).unwrap();
+            RustArchiveEngine::create(
+                &archive,
+                std::slice::from_ref(&source),
+                &CreateOptions::default(),
+            )
+            .unwrap();
             RustArchiveEngine::test(&archive, None).unwrap();
             let entries = RustArchiveEngine::list(&archive, None).unwrap();
-            assert!(entries.iter().any(|entry| entry.path.ends_with("documento àèé.txt")));
+            assert!(
+                entries
+                    .iter()
+                    .any(|entry| entry.path.ends_with("documento àèé.txt"))
+            );
             let destination = temp.path().join("estratto");
             RustArchiveEngine::extract(&archive, &destination, None).unwrap();
-            assert_eq!(std::fs::read_to_string(destination.join("dati/documento àèé.txt")).unwrap(), "contenuto riservato");
+            assert_eq!(
+                std::fs::read_to_string(destination.join("dati/documento àèé.txt")).unwrap(),
+                "contenuto riservato"
+            );
         }
     }
 
@@ -323,12 +418,19 @@ mod tests {
                 level: 5,
                 password: Some(zeroize::Zeroizing::new("password-di-test".into())),
                 solid: true,
+                comment: None,
             };
-            RustArchiveEngine::create(&archive, &[source.clone()], &options).unwrap();
-            assert!(RustArchiveEngine::list(&archive, None).is_err() || RustArchiveEngine::test(&archive, None).is_err());
+            RustArchiveEngine::create(&archive, std::slice::from_ref(&source), &options).unwrap();
+            assert!(
+                RustArchiveEngine::list(&archive, None).is_err()
+                    || RustArchiveEngine::test(&archive, None).is_err()
+            );
             let destination = temp.path().join("estratto");
             RustArchiveEngine::extract(&archive, &destination, Some("password-di-test")).unwrap();
-            assert_eq!(std::fs::read_to_string(destination.join("segreto.txt")).unwrap(), "contenuto AES");
+            assert_eq!(
+                std::fs::read_to_string(destination.join("segreto.txt")).unwrap(),
+                "contenuto AES"
+            );
         }
     }
 
@@ -340,13 +442,25 @@ mod tests {
             std::fs::create_dir(&source).unwrap();
             std::fs::write(source.join("documento.txt"), "contenuto TAR").unwrap();
             let archive = temp.path().join(format!("prova.{extension}"));
-            RustArchiveEngine::create(&archive, &[source.clone()], &CreateOptions::default()).unwrap();
+            RustArchiveEngine::create(
+                &archive,
+                std::slice::from_ref(&source),
+                &CreateOptions::default(),
+            )
+            .unwrap();
             RustArchiveEngine::test(&archive, None).unwrap();
             let entries = RustArchiveEngine::list(&archive, None).unwrap();
-            assert!(entries.iter().any(|entry| entry.path.ends_with("documento.txt")));
+            assert!(
+                entries
+                    .iter()
+                    .any(|entry| entry.path.ends_with("documento.txt"))
+            );
             let destination = temp.path().join("estratto");
             RustArchiveEngine::extract(&archive, &destination, None).unwrap();
-            assert_eq!(std::fs::read_to_string(destination.join("dati/documento.txt")).unwrap(), "contenuto TAR");
+            assert_eq!(
+                std::fs::read_to_string(destination.join("dati/documento.txt")).unwrap(),
+                "contenuto TAR"
+            );
         }
     }
 
@@ -356,7 +470,9 @@ mod tests {
         let archive = temp.path().join("malevolo.zip");
         let file = File::create(&archive).unwrap();
         let mut writer = zip::ZipWriter::new(file);
-        writer.start_file("../fuori.txt", zip::write::SimpleFileOptions::default()).unwrap();
+        writer
+            .start_file("../fuori.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
         writer.write_all(b"non scrivere").unwrap();
         writer.finish().unwrap();
         let destination = temp.path().join("destinazione");

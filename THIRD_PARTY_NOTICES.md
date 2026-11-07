@@ -6,7 +6,10 @@ Wol-rar usa crate Rust mantenuti dai rispettivi autori. Ogni pacchetto conserva 
 - `sevenz-rust2`: MIT; vedere https://github.com/hasenbanck/sevenz-rust2.
 - `zip`: MIT; vedere https://github.com/zip-rs/zip2.
 - `unrar`: MIT o Apache-2.0 per il wrapper; vedere https://github.com/muja/unrar.rs.
-- `tar`, `flate2`, `bzip2`, `xz2`, `walkdir`, `clap`, `serde`, `serde_json`, `semver`, `ureq`, `sha2`, `thiserror`, `anyhow`, `zeroize`, `winres`: licenze indicate nei rispettivi pacchetti crates.io e repository ufficiali.
+- `argon2`: MIT o Apache-2.0; vedere https://docs.rs/argon2/.
+- `blake3`: CC0 o Apache-2.0; `chacha20poly1305`, `filetime`: MIT o Apache-2.0, secondo i rispettivi pacchetti.
+- `zstd`: MIT per il crate; la libreria nativa conserva i propri avvisi.
+- `tar`, `flate2`, `bzip2`, `xz2`, `walkdir`, `clap`, `serde`, `serde_json`, `semver`, `ureq`, `sha2`, `thiserror`, `anyhow`, `zeroize`, `getrandom`, `winres`: licenze indicate nei rispettivi pacchetti crates.io e repository ufficiali.
 - Le librerie native incluse transitivamente conservano i rispettivi avvisi; l'elenco completo delle versioni è in `rust/Cargo.lock`.
 
 ## unRAR restriction

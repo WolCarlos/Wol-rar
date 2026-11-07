@@ -4,16 +4,19 @@ Archiviatore privato **scritto in Rust** per Windows x64, Ubuntu x64 e macOS. In
 
 ## Funzionalità
 
+- Nuovo formato aperto **`.wolrar` v1**: Zstandard, BLAKE3, commenti Unicode e metadati, con streaming per file non cifrati.
+- Cifratura `.wolrar` con Argon2id e XChaCha20-Poly1305; metadati dei file autenticati tramite AAD. Limite corrente: 512 MiB per file cifrato.
 - Creazione **7z, ZIP, TAR, TAR.GZ, TAR.BZ2 e TAR.XZ** senza sovrascrittura automatica.
-- Apertura ed elenco di 7z, ZIP, RAR e TAR compressi; RAR soltanto in lettura tramite unRAR.
-- Estrazione con rifiuto di path traversal, percorsi assoluti, ADS e file esistenti.
+- Apertura ed elenco di `.wolrar`, 7z, ZIP, RAR e TAR compressi; RAR soltanto in lettura tramite unRAR.
+- Estrazione `.wolrar` transazionale con digest globale e per file, senza output parziale in caso di errore.
+- Protezione da path traversal, percorsi assoluti, ADS, link simbolici nei percorsi di destinazione e file esistenti.
 - Verifica di integrità tramite decodifica completa in una directory temporanea.
 - Opzioni AES-256 per ZIP e 7z, con password solo su stdin o campo volatile.
-- GUI con filtro, operazioni in thread separato, Novità e sezione Agenti AI.
+- GUI con filtro, commenti, operazioni in thread separato, Novità e sezione Agenti AI.
 - Aggiornamenti espliciti da GitHub Releases con HTTPS, limite di download e verifica SHA-256.
 - Installer Windows, binario portabile e menu Explorer raggruppato con comandi pertinenti.
 
-La copertura aggiornata e le funzionalità ancora pianificate sono in [FEATURE_PARITY.md](FEATURE_PARITY.md).
+La specifica indipendente è in [WOLRAR_FORMAT.md](WOLRAR_FORMAT.md), dedicata a CC0 1.0. La copertura aggiornata e le funzionalità ancora pianificate sono in [FEATURE_PARITY.md](FEATURE_PARITY.md).
 
 ## Agenti AI e CLI
 
@@ -22,7 +25,8 @@ Tutte le funzioni hanno una CLI equivalente con `--json`. Il comando `wol-rar ag
 ```text
 wol-rar formats --json
 wol-rar list ARCHIVIO --json
-wol-rar create ORIGINE --output ARCHIVIO.7z --level 5 --json
+wol-rar info ARCHIVIO.wolrar --json
+wol-rar create ORIGINE [ALTRE-ORIGINI...] --output ARCHIVIO.wolrar --comment "Testo" --json
 wol-rar extract ARCHIVIO --destination CARTELLA --json
 wol-rar test ARCHIVIO --json
 wol-rar update-check --json
@@ -57,6 +61,7 @@ Richiede Rust stable 1.95 o successivo e, su Windows, il linker MSVC.
 
 ```bash
 cargo test --manifest-path rust/Cargo.toml
+cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 cargo run --manifest-path rust/Cargo.toml
 cargo build --release --manifest-path rust/Cargo.toml
 ```
@@ -66,6 +71,13 @@ Build e pacchetto sul sistema corrente:
 ```bash
 python scripts/build_rust.py
 python scripts/package_release.py
+```
+
+Test CLI completo del formato aperto:
+
+```bash
+cargo build --manifest-path rust/Cargo.toml
+python scripts/test_wolrar_cli.py
 ```
 
 Installer Windows con Inno Setup 7.1.1:
@@ -86,11 +98,11 @@ La workflow `.github/workflows/release.yml` installa Rust stable, esegue test e 
 
 ## Rilascio
 
-1. Aggiornare versione in `rust/Cargo.toml`, `rust/build.rs`, `scripts/build_rust.py`, `scripts/package_release.py`, `resources/changelog.json` e `RELEASE_NOTES.md`.
+1. Aggiornare versione in `rust/Cargo.toml`, `rust/build.rs`, `scripts/build_rust.py`, `scripts/package_release.py`, `scripts/build_installer.py`, `resources/changelog.json` e `RELEASE_NOTES.md`.
 2. Aggiornare `FEATURE_PARITY.md` senza dichiarare funzionalità non testate.
 3. Eseguire test, build e smoke test.
 4. Creare una tag `vX.Y.Z`.
 
 ## Licenze
 
-Il codice applicativo è source-available e non è concesso con licenza open-source. Dipendenze e restrizione unRAR sono documentate in `THIRD_PARTY_NOTICES.md`; le versioni esatte sono in `rust/Cargo.lock`.
+Il codice applicativo è source-available e non è concesso con licenza open-source. La specifica del formato è invece pubblica con CC0 1.0 e ne sono consentite implementazioni indipendenti. Dipendenze e restrizione unRAR sono documentate in `THIRD_PARTY_NOTICES.md`; le versioni esatte sono in `rust/Cargo.lock`.

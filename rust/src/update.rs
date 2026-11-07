@@ -49,13 +49,18 @@ pub fn check_latest() -> Result<ReleaseInfo, ArchiveError> {
 pub fn download_latest(destination: &Path) -> Result<UpdateDownload, ArchiveError> {
     let release = check_latest()?;
     let asset = release.asset(&update_asset_name())?;
-    let checksums = String::from_utf8(fetch(&release.asset("SHA256SUMS.txt")?.browser_download_url, 128 * 1024)?)
-        .map_err(|error| ArchiveError::Message(error.to_string()))?;
+    let checksums = String::from_utf8(fetch(
+        &release.asset("SHA256SUMS.txt")?.browser_download_url,
+        128 * 1024,
+    )?)
+    .map_err(|error| ArchiveError::Message(error.to_string()))?;
     let expected = checksum_for(&checksums, &asset.name)?;
     let data = fetch(&asset.browser_download_url, 512 * 1024 * 1024)?;
     let actual = format!("{:x}", Sha256::digest(&data));
     if actual != expected {
-        return Err(ArchiveError::Message("Checksum aggiornamento non valido".into()));
+        return Err(ArchiveError::Message(
+            "Checksum aggiornamento non valido".into(),
+        ));
     }
     fs::create_dir_all(destination)?;
     let output = destination.join(&asset.name);
@@ -65,12 +70,20 @@ pub fn download_latest(destination: &Path) -> Result<UpdateDownload, ArchiveErro
     let partial = destination.join(format!("{}.part", asset.name));
     fs::write(&partial, data)?;
     fs::rename(&partial, &output)?;
-    Ok(UpdateDownload { version: release.tag_name, asset: asset.name, destination: output, sha256: actual })
+    Ok(UpdateDownload {
+        version: release.tag_name,
+        asset: asset.name,
+        destination: output,
+        sha256: actual,
+    })
 }
 
 impl ReleaseInfo {
     fn asset(&self, name: &str) -> Result<ReleaseAsset, ArchiveError> {
-        self.assets.iter().find(|asset| asset.name == name).cloned()
+        self.assets
+            .iter()
+            .find(|asset| asset.name == name)
+            .cloned()
             .ok_or_else(|| ArchiveError::Message(format!("Asset mancante nella release: {name}")))
     }
 }
@@ -89,28 +102,41 @@ fn update_asset_name() -> String {
 
 fn fetch(url: &str, limit: u64) -> Result<Vec<u8>, ArchiveError> {
     if !url.starts_with("https://") {
-        return Err(ArchiveError::Message("Sono consentiti soltanto URL HTTPS".into()));
+        return Err(ArchiveError::Message(
+            "Sono consentiti soltanto URL HTTPS".into(),
+        ));
     }
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(60)))
         .user_agent(format!("Wol-rar/{}", env!("CARGO_PKG_VERSION")))
         .build()
         .into();
-    let mut response = agent.get(url).call().map_err(|error| ArchiveError::Message(error.to_string()))?;
-    response.body_mut().with_config().limit(limit).read_to_vec()
+    let mut response = agent
+        .get(url)
+        .call()
+        .map_err(|error| ArchiveError::Message(error.to_string()))?;
+    response
+        .body_mut()
+        .with_config()
+        .limit(limit)
+        .read_to_vec()
         .map_err(|error| ArchiveError::Message(error.to_string()))
 }
 
 fn checksum_for(contents: &str, asset_name: &str) -> Result<String, ArchiveError> {
     for line in contents.lines() {
         let mut fields = line.split_whitespace();
-        let Some(digest) = fields.next() else { continue };
+        let Some(digest) = fields.next() else {
+            continue;
+        };
         let Some(name) = fields.next() else { continue };
         if name.trim_start_matches('*') == asset_name && digest.len() == 64 {
             return Ok(digest.to_ascii_lowercase());
         }
     }
-    Err(ArchiveError::Message(format!("Checksum mancante per {asset_name}")))
+    Err(ArchiveError::Message(format!(
+        "Checksum mancante per {asset_name}"
+    )))
 }
 
 pub fn is_newer(candidate: &str) -> Result<bool, ArchiveError> {
@@ -128,8 +154,14 @@ mod tests {
     #[test]
     fn parses_gnu_checksums() {
         let digest = "a".repeat(64);
-        assert_eq!(checksum_for(&format!("{digest} *app.exe"), "app.exe").unwrap(), digest);
-        assert_eq!(checksum_for(&format!("{digest}  app.exe"), "app.exe").unwrap(), digest);
+        assert_eq!(
+            checksum_for(&format!("{digest} *app.exe"), "app.exe").unwrap(),
+            digest
+        );
+        assert_eq!(
+            checksum_for(&format!("{digest}  app.exe"), "app.exe").unwrap(),
+            digest
+        );
     }
 
     #[test]
