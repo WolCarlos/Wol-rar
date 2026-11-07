@@ -1,11 +1,12 @@
-# Wol-rar 0.5.0
+# Wol-rar 0.6.0
 
-- Nuovo formato aperto **`.wolrar` v1**, indipendente da RAR, con specifica pubblica CC0 e implementazione Rust.
-- Compressione Zstandard, streaming per file non cifrati, digest BLAKE3 globali e per file, commenti Unicode, timestamp e permessi.
-- Cifratura opzionale con **Argon2id + XChaCha20-Poly1305**, nonce per file e autenticazione AAD dei metadati.
-- Estrazione transazionale: archivio verificato prima della scrittura e nessun file parziale dopo errori, password errate o dati corrotti.
-- Nuovo comando `info`, commenti da CLI/GUI e creazione CLI da una o più origini; `.wolrar` è il formato predefinito per i nuovi archivi.
-- Menu Explorer e installer aggiornati per `.wolrar`, con specifica inclusa.
-- Diciassette test unitari, lint senza warning e smoke test CLI/GUI su Windows, Ubuntu 22.04 e macOS 15 Intel.
+- Nuova `.wolrar` v2 con cifratura streaming per chunk, senza il limite v1 di 512 MiB per file cifrato.
+- Volumi multipli con manifest e digest, recovery Reed–Solomon e riparazione senza sovrascrittura.
+- Deduplicazione opzionale, SFX a volume unico e benchmark offline con verifica digest.
+- Nuova specifica pubblica CC0 `WOLRAR_FORMAT_V2.md`; lettura v1 mantenuta.
+- Interfaccia completamente rinnovata: tema scuro predefinito, tema chiaro, icone originali, riepilogo compressioni, tabella ordinabile e UX migliorata.
+- Nuove opzioni GUI/CLI per volumi, recovery e deduplicazione; nuovi comandi `repair`, `sfx` e `benchmark`.
+- Evidenza REA aggiuntiva sulla copia autorizzata di WinRAR, senza copiare codice o risorse proprietarie.
+- Ventinove test unitari, lint senza warning e smoke test CLI end-to-end.
 
-Limite corrente: i file `.wolrar` cifrati hanno un massimo di 512 MiB per file. Volumi, recovery, deduplicazione e SFX restano pianificati; RAR resta disponibile soltanto in lettura. Le altre lacune sono elencate in `FEATURE_PARITY.md`.
+Restano pianificati i formati legacy ISO, CAB, ARJ, LZH, UUE e Z e le operazioni di modifica archivio. RAR resta soltanto in lettura; nessuna parità non verificata viene dichiarata.

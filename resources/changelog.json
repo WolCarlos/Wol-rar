@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.6.0",
+    "date": "2026-11-08",
+    "notes": [
+      "Formato .wolrar v2 con cifratura streaming e lettura v1.",
+      "Volumi multipli, recovery Reed-Solomon e riparazione senza sovrascrittura.",
+      "Deduplicazione, SFX a volume unico e benchmark offline.",
+      "Nuova GUI con tema scuro predefinito, tema chiaro e UX rinnovata.",
+      "Comandi repair, sfx e benchmark con test end-to-end."
+    ]
+  },
+  {
     "version": "0.5.0",
     "date": "2026-11-07",
     "notes": [

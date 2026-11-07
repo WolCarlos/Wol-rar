@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.5.0"
+#define AppVersion "0.6.0"
 #endif
 
 [Setup]
@@ -44,6 +44,7 @@ Name: "contextmenu"; Description: "Aggiungi il menu Wol-rar al tasto destro di E
 Source: "..\dist\Wol-rar.exe"; DestDir: "{app}"; Flags: ignoreversion signcheck
 Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\WOLRAR_FORMAT.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\WOLRAR_FORMAT_V2.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\wol-rar.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 Source: "..\assets\menu-*.ico"; DestDir: "{app}\assets"; Flags: ignoreversion

@@ -10,3 +10,11 @@
 - **Decisione clean-room:** implementare un archiviatore originale offline con 7-Zip; creazione 7z/ZIP, RAR in sola lettura tramite il motore, nessun codice o asset WinRAR riutilizzato.
 
 Le evidenze JSON complete e la copia del target sono locali e ignorate da Git.
+
+## Integrazione REA 6.8.0, 7 novembre 2026
+
+- **Nuova evidenza osservata:** `ev_780a90a0f64b2cd4333fd7b59520de1bb75e3cfeb743bcc966e532f99674aefa`, operazione `inspect_pe_resources` sullo stesso target e digest.
+- **Risultato:** tabella risorse PE32+ AMD64 a offset 1632256; inventario con una famiglia `PNG` e 111 identificatori di primo livello. Nessuna risorsa viene estratta o riutilizzata.
+- **Limite:** l'inventario statico delle risorse non dimostra comportamento runtime né associa autonomamente un'icona a una funzione.
+- **Mappa funzionale di progetto:** UI scura/chiara e UX; `.wolrar` v2 con cifratura streaming e volumi; recovery/riparazione; formati e operazioni avanzate; benchmark e test nativi. Ogni voce resta pianificata finché non ha test propri.
+- **Confine clean-room:** nessuna decompilazione del compressore RAR, nessuna copia di codice, testi o asset. Analisi REA limitata a identità, struttura e comportamento interoperabile consentito.

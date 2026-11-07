@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 
 def selected_platform() -> str:
@@ -44,12 +44,14 @@ def main() -> None:
             bundle.add(executable, arcname="Wol-rar")
             bundle.add(ROOT / "THIRD_PARTY_NOTICES.md", arcname="THIRD_PARTY_NOTICES.md")
             bundle.add(ROOT / "WOLRAR_FORMAT.md", arcname="WOLRAR_FORMAT.md")
+            bundle.add(ROOT / "WOLRAR_FORMAT_V2.md", arcname="WOLRAR_FORMAT_V2.md")
             bundle.add(ROOT / "resources" / "changelog.json", arcname="changelog.json")
     else:
         with tarfile.open(asset, "w:gz") as bundle:
             bundle.add(ROOT / "dist" / "Wol-rar.app", arcname="Wol-rar.app")
             bundle.add(ROOT / "THIRD_PARTY_NOTICES.md", arcname="THIRD_PARTY_NOTICES.md")
             bundle.add(ROOT / "WOLRAR_FORMAT.md", arcname="WOLRAR_FORMAT.md")
+            bundle.add(ROOT / "WOLRAR_FORMAT_V2.md", arcname="WOLRAR_FORMAT_V2.md")
             bundle.add(ROOT / "resources" / "changelog.json", arcname="changelog.json")
     digest = hashlib.sha256(asset.read_bytes()).hexdigest()
     with (release / f"{asset.name}.sha256").open("w", encoding="utf-8") as output:

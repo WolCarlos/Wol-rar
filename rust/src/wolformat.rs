@@ -36,6 +36,33 @@ pub struct WolArchiveInfo {
     pub body_len: u64,
 }
 
+pub fn version(path: &Path) -> Result<u16, ArchiveError> {
+    let mut file = File::open(path)?;
+    let mut magic = [0u8; 8];
+    file.read_exact(&mut magic)?;
+    if &magic == b"WOLVOL02" {
+        return Ok(2);
+    }
+    if &magic != MAGIC {
+        return Err(ArchiveError::UnsupportedFormat(
+            "Magic .wolrar non valido".into(),
+        ));
+    }
+    let mut version = [0u8; 2];
+    file.read_exact(&mut version)?;
+    Ok(u16::from_le_bytes(version))
+}
+
+pub fn comment(path: &Path) -> Result<String, ArchiveError> {
+    match version(path)? {
+        1 => Ok(inspect(path)?.comment),
+        2 => Ok(crate::wolformat_v2::inspect(path)?.comment),
+        other => Err(ArchiveError::UnsupportedFormat(format!(
+            "Versione .wolrar {other}"
+        ))),
+    }
+}
+
 #[derive(Debug, Clone)]
 struct WolEntry {
     path: String,
@@ -923,6 +950,9 @@ mod tests {
             password: password.map(|value| Zeroizing::new(value.into())),
             solid: false,
             comment: Some("Commento aperto àèé 日本語".into()),
+            volume_size: None,
+            recovery_percent: 0,
+            deduplicate: false,
         }
     }
 

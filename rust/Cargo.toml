@@ -1,6 +1,6 @@
 [package]
 name = "wol-rar"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Archiviatore privato scritto in Rust per Windows, Ubuntu e macOS"
@@ -20,6 +20,7 @@ flate2 = "1.0"
 getrandom = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 rand = "0.9"
+reed-solomon-erasure = "6.0"
 rfd = "0.16"
 semver = "1.0"
 serde = { version = "1.0", features = ["derive"] }

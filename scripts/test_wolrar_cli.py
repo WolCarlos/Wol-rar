@@ -40,10 +40,11 @@ def main() -> None:
         first = root / "primo àèé.txt"
         second = root / "secondo.txt"
         first.write_text("contenuto Unicode 日本語", encoding="utf-8")
-        second.write_bytes(bytes(range(256)) * 4096)
+        second.write_bytes(os.urandom(2 * 1024 * 1024))
 
         formats = run("formats")
         assert "wolrar" in formats["create"] and "wolrar" in formats["read"]
+        assert formats["wolrar"]["write_version"] == 2 and formats["wolrar"]["volumes"] is True
 
         archive = root / "normale.wolrar"
         created = run("create", first, second, "--output", archive, "--comment", "Commento 日本語")
@@ -57,6 +58,26 @@ def main() -> None:
         assert (plain_destination / first.name).read_bytes() == first.read_bytes()
         assert (plain_destination / second.name).read_bytes() == second.read_bytes()
 
+        multi = root / "volumi.wolrar"
+        run("create", second, "--output", multi, "--volume-size", 65536, "--recovery-percent", 10)
+        multi_info = run("info", multi)
+        assert multi_info["format_version"] == 2 and multi_info["volume_count"] > 1, multi_info
+        assert (root / "volumi.w02").is_file()
+        run("test", multi)
+        multi_destination = root / "volumi-estratti"
+        run("extract", multi, "--destination", multi_destination)
+        assert (multi_destination / second.name).read_bytes() == second.read_bytes()
+        assert multi_info["recovery_count"] > 0
+        (root / "volumi.w02").unlink()
+        repaired = root / "riparato"
+        report = run("repair", multi, "--destination", repaired)
+        assert report["report"]["verified"] is True
+        repaired_archive = repaired / "volumi.wolrar"
+        run("test", repaired_archive)
+        repaired_destination = root / "riparato-estratto"
+        run("extract", repaired_archive, "--destination", repaired_destination)
+        assert (repaired_destination / second.name).read_bytes() == second.read_bytes()
+
         password = secrets.token_urlsafe(32)
         encrypted = root / "cifrato.wolrar"
         run("create", first, "--output", encrypted, "--password-stdin", password=password)
@@ -68,6 +89,12 @@ def main() -> None:
         encrypted_destination = root / "decifrato"
         run("extract", encrypted, "--destination", encrypted_destination, "--password-stdin", password=password)
         assert (encrypted_destination / first.name).read_bytes() == first.read_bytes()
+
+        sfx = root / "autoestraente.exe"
+        report = run("sfx", archive, "--output", sfx)
+        assert report["report"]["archive_bytes"] > 0 and sfx.is_file()
+        benchmark = run("benchmark", "--size-mib", 1)
+        assert benchmark["report"]["verified"] is True
 
     print(json.dumps({"ok": True, "operation": "wolrar-cli-smoke"}, ensure_ascii=False))
 

@@ -13,7 +13,13 @@ pub struct RustArchiveEngine;
 impl RustArchiveEngine {
     pub fn list(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, ArchiveError> {
         match ArchiveFormat::detect(path)? {
-            ArchiveFormat::WolRar => crate::wolformat::list(path),
+            ArchiveFormat::WolRar => match crate::wolformat::version(path)? {
+                1 => crate::wolformat::list(path),
+                2 => crate::wolformat_v2::list(path),
+                other => Err(ArchiveError::UnsupportedFormat(format!(
+                    "Versione .wolrar {other}"
+                ))),
+            },
             ArchiveFormat::Zip => list_zip(path, password),
             ArchiveFormat::SevenZip => list_7z(path, password),
             ArchiveFormat::Rar => list_rar(path, password),
@@ -49,8 +55,16 @@ impl RustArchiveEngine {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        match ArchiveFormat::detect(path)? {
-            ArchiveFormat::WolRar => crate::wolformat::create(path, sources, options).map(|_| ()),
+        let format = ArchiveFormat::detect(path)?;
+        if options.volume_size.is_some() && format != ArchiveFormat::WolRar {
+            return Err(ArchiveError::UnsupportedFormat(
+                "I volumi sono disponibili solo per .wolrar v2".into(),
+            ));
+        }
+        match format {
+            ArchiveFormat::WolRar => {
+                crate::wolformat_v2::create(path, sources, options, options.volume_size).map(|_| ())
+            }
             ArchiveFormat::Zip => create_zip(path, sources, options),
             ArchiveFormat::SevenZip => create_7z(path, sources, options),
             ArchiveFormat::Tar
@@ -75,7 +89,13 @@ impl RustArchiveEngine {
         }
         fs::create_dir_all(destination)?;
         match ArchiveFormat::detect(path)? {
-            ArchiveFormat::WolRar => crate::wolformat::extract(path, destination, password),
+            ArchiveFormat::WolRar => match crate::wolformat::version(path)? {
+                1 => crate::wolformat::extract(path, destination, password),
+                2 => crate::wolformat_v2::extract(path, destination, password),
+                other => Err(ArchiveError::UnsupportedFormat(format!(
+                    "Versione .wolrar {other}"
+                ))),
+            },
             ArchiveFormat::Zip => extract_zip(path, destination, password),
             ArchiveFormat::SevenZip => {
                 for entry in list_7z(path, password)? {
@@ -97,6 +117,35 @@ impl RustArchiveEngine {
             | ArchiveFormat::TarBz2
             | ArchiveFormat::TarXz => extract_tar(path, destination),
         }
+    }
+
+    pub fn benchmark(size_mib: u64) -> Result<crate::benchmark::BenchmarkReport, ArchiveError> {
+        crate::benchmark::run(size_mib)
+    }
+
+    pub fn create_sfx(path: &Path, output: &Path) -> Result<crate::sfx::SfxReport, ArchiveError> {
+        if ArchiveFormat::detect(path)? != ArchiveFormat::WolRar
+            || crate::wolformat::version(path)? != 2
+        {
+            return Err(ArchiveError::UnsupportedFormat(
+                "SFX è disponibile solo per .wolrar v2".into(),
+            ));
+        }
+        crate::sfx::create(path, output)
+    }
+
+    pub fn repair(
+        path: &Path,
+        destination: &Path,
+    ) -> Result<crate::wolrecovery::RepairReport, ArchiveError> {
+        if ArchiveFormat::detect(path)? != ArchiveFormat::WolRar
+            || crate::wolformat::version(path)? != 2
+        {
+            return Err(ArchiveError::UnsupportedFormat(
+                "La riparazione recovery è disponibile solo per .wolrar v2".into(),
+            ));
+        }
+        crate::wolrecovery::repair(path, destination)
     }
 
     pub fn test(path: &Path, password: Option<&str>) -> Result<(), ArchiveError> {
@@ -419,6 +468,9 @@ mod tests {
                 password: Some(zeroize::Zeroizing::new("password-di-test".into())),
                 solid: true,
                 comment: None,
+                volume_size: None,
+                recovery_percent: 0,
+                deduplicate: false,
             };
             RustArchiveEngine::create(&archive, std::slice::from_ref(&source), &options).unwrap();
             assert!(
@@ -460,6 +512,40 @@ mod tests {
             assert_eq!(
                 std::fs::read_to_string(destination.join("dati/documento.txt")).unwrap(),
                 "contenuto TAR"
+            );
+        }
+    }
+
+    #[test]
+    fn wolrar_v1_and_v2_use_the_same_engine_contract() {
+        for version in [1, 2] {
+            let temp = tempfile::tempdir().unwrap();
+            let source = temp.path().join("documento àèé.txt");
+            std::fs::write(&source, format!("contenuto v{version}")).unwrap();
+            let archive = temp.path().join(format!("prova-v{version}.wolrar"));
+            if version == 1 {
+                crate::wolformat::create(
+                    &archive,
+                    std::slice::from_ref(&source),
+                    &CreateOptions::default(),
+                )
+                .unwrap();
+            } else {
+                RustArchiveEngine::create(
+                    &archive,
+                    std::slice::from_ref(&source),
+                    &CreateOptions::default(),
+                )
+                .unwrap();
+            }
+            assert_eq!(crate::wolformat::version(&archive).unwrap(), version);
+            assert_eq!(RustArchiveEngine::list(&archive, None).unwrap().len(), 1);
+            RustArchiveEngine::test(&archive, None).unwrap();
+            let destination = temp.path().join("estratto");
+            RustArchiveEngine::extract(&archive, &destination, None).unwrap();
+            assert_eq!(
+                std::fs::read_to_string(destination.join("documento àèé.txt")).unwrap(),
+                format!("contenuto v{version}")
             );
         }
     }

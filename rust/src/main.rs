@@ -34,6 +34,15 @@ struct Args {
     level: u32,
     #[arg(long, global = true)]
     comment: Option<String>,
+    /// Dimensione massima di ogni volume .wolrar v2 in byte (minimo 65536)
+    #[arg(long, global = true)]
+    volume_size: Option<u64>,
+    /// Percentuale di parity Reed-Solomon per volumi .wolrar v2 (0-100)
+    #[arg(long, global = true, default_value_t = 0)]
+    recovery_percent: u8,
+    /// Deduplica i contenuti identici durante la creazione .wolrar v2
+    #[arg(long, global = true)]
+    deduplicate: bool,
     #[arg(long, global = true)]
     json: bool,
     #[arg(long, global = true)]
@@ -69,6 +78,23 @@ enum Command {
     },
     /// Verifica integrità tramite decodifica completa
     Test { archive: PathBuf },
+    /// Misura creazione ed estrazione .wolrar v2 con verifica digest
+    Benchmark {
+        #[arg(long, default_value_t = 32)]
+        size_mib: u64,
+    },
+    /// Crea un eseguibile autoestraente da un .wolrar v2 a volume unico
+    Sfx {
+        archive: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
+    /// Ricostruisce volumi .wolrar v2 in una nuova cartella
+    Repair {
+        archive: PathBuf,
+        #[arg(long)]
+        destination: PathBuf,
+    },
     /// Mostra formati e capacità del motore
     Formats,
     /// Controlla la release più recente su GitHub
@@ -114,6 +140,14 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
         .map_err(wol_rar::ArchiveError::Message)?;
         return Ok(json!({"ok": true, "gui": "eframe", "version": env!("CARGO_PKG_VERSION")}));
     }
+    if args.command.is_none()
+        && !args.gui
+        && let Some(embedded) = wol_rar::sfx::materialize_current()?
+    {
+        wol_rar::gui::run(wol_rar::gui::GuiAction::Open(embedded.path.clone()), None)
+            .map_err(wol_rar::ArchiveError::Message)?;
+        return Ok(json!({"ok": true, "gui": "eframe", "sfx": true}));
+    }
     if args.gui {
         let action = if let Some(path) = args.open.clone() {
             wol_rar::gui::GuiAction::Open(path)
@@ -139,12 +173,22 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
             "create": ["wolrar", "7z", "zip", "tar", "tar.gz", "tar.bz2", "tar.xz"],
             "read": ["wolrar", "7z", "zip", "rar", "tar", "tar.gz", "tar.bz2", "tar.xz"],
             "wolrar": {
-                "version": 1,
+                "write_version": 2,
+                "read_versions": [1, 2],
                 "compression": "Zstandard",
                 "integrity": "BLAKE3",
                 "encryption": "XChaCha20-Poly1305",
                 "kdf": "Argon2id",
-                "encrypted_file_limit_mib": 512
+                "streaming_encryption": true,
+                "chunk_size_mib": 1,
+                "volumes": true,
+                "volume_extensions": ["wolrar", "w02", "w03"],
+                "recovery": "Reed-Solomon",
+                "repair": true,
+                "sfx_single_volume": true,
+                "deduplication": true,
+                "benchmark": true,
+                "v1_encrypted_file_limit_mib": 512
             },
             "rar_create": false,
             "json": true,
@@ -159,10 +203,23 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
                     "info richiede un archivio .wolrar".into(),
                 ));
             }
-            let info = wol_rar::wolformat::inspect(&archive)?;
-            Ok(
-                json!({"ok": true, "operation": "info", "archive": archive, "format_version": 1, "comment": info.comment, "entry_count": info.entry_count, "encrypted": info.encrypted, "body_len": info.body_len}),
-            )
+            match wol_rar::wolformat::version(&archive)? {
+                1 => {
+                    let info = wol_rar::wolformat::inspect(&archive)?;
+                    Ok(
+                        json!({"ok": true, "operation": "info", "archive": archive, "format_version": 1, "comment": info.comment, "entry_count": info.entry_count, "encrypted": info.encrypted, "body_len": info.body_len, "volume_count": 1}),
+                    )
+                }
+                2 => {
+                    let info = wol_rar::wolformat_v2::inspect(&archive)?;
+                    Ok(
+                        json!({"ok": true, "operation": "info", "archive": archive, "format_version": 2, "comment": info.comment, "entry_count": info.entry_count, "encrypted": info.encrypted, "body_len": info.body_len, "volume_count": info.volume_count, "volume_size": info.volume_size, "recovery_count": wol_rar::wolrecovery::recovery_count(&archive)}),
+                    )
+                }
+                other => Err(wol_rar::ArchiveError::UnsupportedFormat(format!(
+                    "Versione .wolrar {other}"
+                ))),
+            }
         }
         Some(Command::Create {
             sources,
@@ -174,6 +231,9 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
                 password,
                 solid: true,
                 comment: args.comment.clone(),
+                volume_size: args.volume_size,
+                recovery_percent: args.recovery_percent,
+                deduplicate: args.deduplicate,
             };
             RustArchiveEngine::create(&output, &sources, &options)?;
             Ok(json!({"ok": true, "operation": "create", "archive": output, "sources": sources}))
@@ -194,6 +254,21 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
         Some(Command::Test { archive }) => {
             RustArchiveEngine::test(&archive, password.as_ref().map(|value| value.as_str()))?;
             Ok(json!({"ok": true, "operation": "test", "archive": archive}))
+        }
+        Some(Command::Benchmark { size_mib }) => {
+            let report = RustArchiveEngine::benchmark(size_mib)?;
+            Ok(json!({"ok": true, "operation": "benchmark", "report": report}))
+        }
+        Some(Command::Sfx { archive, output }) => {
+            let report = RustArchiveEngine::create_sfx(&archive, &output)?;
+            Ok(json!({"ok": true, "operation": "sfx", "report": report}))
+        }
+        Some(Command::Repair {
+            archive,
+            destination,
+        }) => {
+            let report = RustArchiveEngine::repair(&archive, &destination)?;
+            Ok(json!({"ok": true, "operation": "repair", "report": report}))
         }
         Some(Command::UpdateCheck) => {
             let release = wol_rar::update::check_latest()?;
@@ -227,6 +302,9 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
                 password,
                 solid: true,
                 comment: args.comment.clone(),
+                volume_size: args.volume_size,
+                recovery_percent: args.recovery_percent,
+                deduplicate: args.deduplicate,
             };
             RustArchiveEngine::create(&output, std::slice::from_ref(&source), &options)?;
             Ok(json!({"ok": true, "operation": "create", "archive": output, "source": source}))

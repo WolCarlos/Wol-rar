@@ -114,6 +114,7 @@ jobs:
           rm -f release/*.sha256 release/SHA256SUMS.txt
           cp THIRD_PARTY_NOTICES.md release/THIRD_PARTY_NOTICES.md
           cp WOLRAR_FORMAT.md release/WOLRAR_FORMAT.md
+          cp WOLRAR_FORMAT_V2.md release/WOLRAR_FORMAT_V2.md
           cd release
           sha256sum Wol-rar-* > SHA256SUMS.txt
       - name: Firma checksum se configurata
