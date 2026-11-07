@@ -18,7 +18,7 @@
 - Aggiornamenti HTTPS con SHA-256 e download installer Windows.
 - Installer con menu Explorer raggruppato anche per `.wolrar` e binario con icona/metadati Windows.
 - AES-256 per ZIP e 7z con round-trip di cifratura/decifratura testati.
-- Diciassette test unitari locali e smoke test CLI end-to-end superati su Windows; round-trip normale/cifrato e file da 16 MiB verificati.
+- Diciassette test unitari, smoke CLI/GUI e build superati su Windows, Ubuntu 22.04 e macOS 15 Intel; round-trip normale/cifrato e file da 16 MiB verificati.
 
 ## In sviluppo o pianificato
 
