@@ -27,7 +27,7 @@ def main() -> None:
     if hashlib.sha256(installer.read_bytes()).hexdigest() != SHA256:
         raise RuntimeError("Hash Inno Setup non valido.")
     signature = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-Command", f"(Get-AuthenticodeSignature '{installer}').Status"],
+        ["powershell.exe", "-NoProfile", "-Command", f"$s=Get-AuthenticodeSignature -FilePath '{installer}'; $s.Status"],
         check=True,
         capture_output=True,
         text=True,
