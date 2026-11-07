@@ -26,14 +26,17 @@ def main() -> None:
     urllib.request.urlretrieve(URL, installer)
     if hashlib.sha256(installer.read_bytes()).hexdigest() != SHA256:
         raise RuntimeError("Hash Inno Setup non valido.")
-    signature = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-Command", f"$s=Get-AuthenticodeSignature -FilePath '{installer}'; $s.Status"],
+    signature_command = (
+        f"$s=Get-AuthenticodeSignature -FilePath '{installer}'; "
+        "if ($null -eq $s -or $null -eq $s.SignerCertificate) { throw 'Certificato Inno Setup assente' }; "
+        "if ($s.Status -ne 'Valid') { throw ('Firma Inno Setup non valida: ' + $s.Status) }"
+    )
+    subprocess.run(
+        ["powershell.exe", "-NoProfile", "-Command", signature_command],
         check=True,
         capture_output=True,
         text=True,
-    ).stdout.strip()
-    if signature != "Valid":
-        raise RuntimeError(f"Firma Inno Setup non valida: {signature}")
+    )
     subprocess.run(
         [str(installer), "/VERYSILENT", "/NORESTART", "/CURRENTUSER", f"/DIR={destination}"],
         check=True,
