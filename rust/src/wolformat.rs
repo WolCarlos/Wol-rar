@@ -775,7 +775,7 @@ fn modification_time(metadata: &fs::Metadata) -> i64 {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        return metadata.mtime();
+        metadata.mtime()
     }
     #[cfg(not(unix))]
     {
@@ -792,7 +792,7 @@ fn permissions(metadata: &fs::Metadata) -> u32 {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        return metadata.permissions().mode();
+        metadata.permissions().mode()
     }
     #[cfg(not(unix))]
     {
