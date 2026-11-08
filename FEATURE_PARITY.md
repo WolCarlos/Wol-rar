@@ -43,7 +43,7 @@ Ogni voce può essere spuntata soltanto dopo implementazione, test automatici e 
 
 - [x] Backend multipiattaforma con provenienza, versioni, licenze e redistribuzione documentate.
 - [x] Apertura, elenco, test ed estrazione sicura di ISO, CAB, ARJ, LZH, UUE e Z, con limite `.Z` documentato.
-- [ ] Fixture controllate Unicode, traversal e troncamento: test locali superati; attesa conferma CI su Windows, Ubuntu e macOS.
+- [x] Fixture controllate Unicode, traversal e troncamento; test superati localmente e nella CI `42506875894` su Windows, Ubuntu 22.04 e macOS 15 Intel.
 
 ### 4. Modifica e conversione archivi
 
