@@ -59,6 +59,40 @@ def make_app_icon() -> None:
     save_icon(image.resize((256, 256), Image.Resampling.LANCZOS), "wol-rar")
 
 
+def make_special_icons() -> None:
+    """Crea varianti originali per file, SFX e integrazione Windows."""
+    for name in ("installer", "uninstall", "shortcut", "archive", "sfx"):
+        image = Image.new("RGBA", (256 * SCALE, 256 * SCALE), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        if name == "archive":
+            polygon(draw, [(42, 12), (164, 12), (216, 64), (216, 242), (42, 242)], "#f3f7f5")
+            polygon(draw, [(164, 12), (164, 64), (216, 64)], "#b8d8cc")
+            rounded(draw, (58, 76, 202, 226), 24, "#173f35")
+            draw_stack(draw, 70, 91, 1.45)
+            line(draw, [(184, 28), (184, 53)], "#37a88b", 5)
+        else:
+            rounded(draw, (8, 8, 248, 248), 54, "#173f35")
+            draw.ellipse((44 * SCALE, 211 * SCALE, 218 * SCALE, 230 * SCALE), fill="#0d2a23")
+            draw_stack(draw, 42, 30, 1.68)
+            badge_colors = {
+                "installer": "#4387c7",
+                "uninstall": "#b94b55",
+                "shortcut": "#37a88b",
+                "sfx": "#e4ad45",
+            }
+            draw.ellipse((150 * SCALE, 150 * SCALE, 246 * SCALE, 246 * SCALE), fill=badge_colors[name])
+            if name == "installer":
+                arrow(draw, [(198, 165), (198, 216), (178, 196), (198, 216), (218, 196)], "#ffffff", 7)
+                line(draw, [(172, 226), (224, 226)], "#ffffff", 7)
+            elif name == "uninstall":
+                line(draw, [(174, 198), (222, 198)], "#ffffff", 9)
+            elif name == "shortcut":
+                arrow(draw, [(174, 220), (220, 174), (195, 174), (220, 174), (220, 199)], "#ffffff", 8)
+            elif name == "sfx":
+                polygon(draw, [(182, 170), (182, 226), (226, 198)], "#ffffff")
+        save_icon(image.resize((256, 256), Image.Resampling.LANCZOS), f"wol-rar-{name}")
+
+
 def arrow(draw: ImageDraw.ImageDraw, points, color="#ffffff", width=5):
     line(draw, points, color, width)
     (x1, y1), (x2, y2), (x3, y3) = points[-3:]
@@ -97,10 +131,11 @@ def make_menu_icons() -> None:
             draw.ellipse((37 * SCALE, 17 * SCALE, 57 * SCALE, 47 * SCALE), fill="#4387c7")
             rounded(draw, (45, 21, 49, 25), 2, "#ffffff")
             rounded(draw, (45, 29, 49, 41), 2, "#ffffff")
-        save_icon(image.resize((64, 64), Image.Resampling.LANCZOS), f"menu-{name}")
+        save_icon(image.resize((256, 256), Image.Resampling.LANCZOS), f"menu-{name}")
 
 
 if __name__ == "__main__":
     make_app_icon()
     make_menu_icons()
+    make_special_icons()
     print(f"Icone create in {ASSETS}")

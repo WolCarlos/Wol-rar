@@ -8,9 +8,12 @@ Usa `wol-rar` per archivi locali senza telemetria. Tutte le funzioni hanno CLI e
 - Opzioni v2: `--volume-size BYTE` (minimo 65536), `--recovery-percent 0-100` (richiede volumi), `--deduplicate`.
 - Estrai/verifica: `wol-rar extract ARCHIVIO --destination CARTELLA --json`, `wol-rar test ARCHIVIO --json`.
 - Ripara: `wol-rar repair VOLUMI.wolrar --destination NUOVA-CARTELLA --json`.
+- Modifica: `delete ARCHIVIO VOCE`, `rename ARCHIVIO VOCE NUOVO-PERCORSO`, `add`/`update ARCHIVIO FILE VOCE`; output opzionale `--output`.
+- Converti: `wol-rar convert ARCHIVIO --output NUOVO.wolrar --json`; volumi/recovery vengono rifiutati durante edit/conversione.
+- Legacy in lettura: ISO, CAB, ARJ, LHA/LZH, UUE e `.Z`; il formato `.Z` non garantisce il rilevamento di ogni troncamento.
 - SFX volume unico: `wol-rar sfx ARCHIVIO.wolrar --output AUTO.exe --json`.
-- Benchmark offline: `wol-rar benchmark --size-mib 32 --json`.
-- Aggiornamenti: `wol-rar update-check --json`; scarica solo dopo conferma con `update-download`.
+- Benchmark: `wol-rar benchmark --size-mib 32 --json`; comparativo `benchmark --suite --output benchmark.json`.
+- Aggiornamenti: `wol-rar update-check --json`, `update-download --json`, poi `update-install ASSET-IN-CACHE --json` solo dopo richiesta esplicita.
 - Prompt: `wol-rar agent`.
 
 Regole:

@@ -40,6 +40,7 @@ jobs:
           cargo test --manifest-path rust/Cargo.toml
           cargo build --manifest-path rust/Cargo.toml
           python scripts/test_wolrar_cli.py
+          python scripts/test_windows_assets.py
       - name: Build Rust
         run: python scripts/build_rust.py
       - name: Smoke test Windows

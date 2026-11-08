@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2026-11-08",
+    "notes": [
+      "Updater con cache dedicata, download HTTPS/SHA-256, Installa ed esito reale del processo.",
+      "Tredici icone originali multi-dimensione e DefaultIcon per .wolrar.",
+      "Lettura ISO, CAB, ARJ, LHA/LZH, UUE e Z con fixture di sicurezza.",
+      "Operazioni delete, rename, add, update e convert con rollback verificato.",
+      "Wizard, metadati estesi e benchmark comparativo JSON con sei profili."
+    ]
+  },
+  {
     "version": "0.6.0",
     "date": "2026-11-08",
     "notes": [

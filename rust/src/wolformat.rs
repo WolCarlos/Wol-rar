@@ -230,6 +230,18 @@ pub fn list(path: &Path) -> Result<Vec<ArchiveEntry>, ArchiveError> {
             modified: entry.modified.to_string(),
             directory: entry.directory,
             encrypted: entry.encrypted,
+            metadata: std::collections::BTreeMap::from([
+                ("mode".into(), format!("{:o}", entry.mode)),
+                (
+                    "blake3".into(),
+                    entry
+                        .digest
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect(),
+                ),
+                ("compression".into(), "zstd".into()),
+            ]),
         })
         .collect())
 }

@@ -12,6 +12,12 @@ pub enum ArchiveFormat {
     TarGz,
     TarBz2,
     TarXz,
+    Iso,
+    Cab,
+    Arj,
+    Lzh,
+    Uue,
+    Z,
 }
 
 impl ArchiveFormat {
@@ -45,6 +51,56 @@ impl ArchiveFormat {
         if name.ends_with(".tar.xz") || name.ends_with(".txz") {
             return Ok(Self::TarXz);
         }
+        if name.ends_with(".iso") {
+            return Ok(Self::Iso);
+        }
+        if name.ends_with(".cab") {
+            return Ok(Self::Cab);
+        }
+        if name.ends_with(".arj") {
+            return Ok(Self::Arj);
+        }
+        if name.ends_with(".lzh") || name.ends_with(".lha") {
+            return Ok(Self::Lzh);
+        }
+        if name.ends_with(".uue") || name.ends_with(".uu") {
+            return Ok(Self::Uue);
+        }
+        if name.ends_with(".z") {
+            return Ok(Self::Z);
+        }
         Err(ArchiveError::UnsupportedFormat(name))
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::WolRar => ".wolrar",
+            Self::SevenZip => "7z",
+            Self::Zip => "ZIP",
+            Self::Rar => "RAR",
+            Self::Tar => "TAR",
+            Self::TarGz => "TAR.GZ",
+            Self::TarBz2 => "TAR.BZ2",
+            Self::TarXz => "TAR.XZ",
+            Self::Iso => "ISO",
+            Self::Cab => "CAB",
+            Self::Arj => "ARJ",
+            Self::Lzh => "LHA/LZH",
+            Self::Uue => "UUE",
+            Self::Z => "Unix compress .Z",
+        }
+    }
+
+    pub fn supports_create(self) -> bool {
+        matches!(
+            self,
+            Self::WolRar
+                | Self::SevenZip
+                | Self::Zip
+                | Self::Tar
+                | Self::TarGz
+                | Self::TarBz2
+                | Self::TarXz
+        )
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "wol-rar"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.95"
 description = "Archiviatore privato scritto in Rust per Windows, Ubuntu e macOS"
@@ -14,10 +14,12 @@ blake3 = "1.8"
 bzip2 = "0.6"
 chacha20poly1305 = "0.10"
 clap = { version = "4.5", features = ["derive"] }
+delharc = "0.8"
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "system_fonts", "wayland", "x11", "wgpu"] }
 filetime = "0.2"
 flate2 = "1.0"
 getrandom = "0.4"
+hadris-iso = { version = "=2.5.0", features = ["joliet"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 rand = "0.9"
 reed-solomon-erasure = "6.0"
@@ -30,8 +32,10 @@ sha2 = "0.10"
 tar = "0.4"
 tempfile = "3.23"
 thiserror = "2.0"
+unarc-rs = "0.8.1"
 unrar = "0.5.8"
 ureq = { version = "3", features = ["json"] }
+uuencoding = "0.3.0"
 walkdir = "2.5"
 xz2 = "0.1"
 zeroize = "1.8"

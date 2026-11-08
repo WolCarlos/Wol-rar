@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.6.0"
+#define AppVersion "0.7.0"
 #endif
 
 [Setup]
@@ -20,8 +20,8 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\release
 OutputBaseFilename=Wol-rar-Setup-x64
-SetupIconFile=..\assets\wol-rar.ico
-UninstallDisplayIcon={app}\Wol-rar.exe
+SetupIconFile=..\assets\wol-rar-installer.ico
+UninstallDisplayIcon={app}\assets\wol-rar-uninstall.ico
 UninstallDisplayName=Wol-rar
 VersionInfoVersion={#AppVersion}.0
 VersionInfoCompany=WolCarlos
@@ -47,19 +47,27 @@ Source: "..\WOLRAR_FORMAT.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\WOLRAR_FORMAT_V2.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\wol-rar.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "..\assets\wol-rar-*.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "..\assets\wol-rar-*.png"; DestDir: "{app}\assets"; Flags: ignoreversion
 Source: "..\assets\menu-*.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 Source: "..\assets\menu-*.png"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Wol-rar"; Filename: "{app}\Wol-rar.exe"; IconFilename: "{app}\assets\wol-rar.ico"
+Name: "{group}\Wol-rar"; Filename: "{app}\Wol-rar.exe"; IconFilename: "{app}\assets\wol-rar-shortcut.ico"
 Name: "{group}\Novità e download"; Filename: "https://github.com/WolCarlos/Wol-rar/releases"; IconFilename: "{app}\assets\menu-update.ico"
-Name: "{group}\Disinstalla Wol-rar"; Filename: "{uninstallexe}"; IconFilename: "{app}\assets\wol-rar.ico"
-Name: "{autodesktop}\Wol-rar"; Filename: "{app}\Wol-rar.exe"; IconFilename: "{app}\assets\wol-rar.ico"; Tasks: desktopicon
+Name: "{group}\Disinstalla Wol-rar"; Filename: "{uninstallexe}"; IconFilename: "{app}\assets\wol-rar-uninstall.ico"
+Name: "{autodesktop}\Wol-rar"; Filename: "{app}\Wol-rar.exe"; IconFilename: "{app}\assets\wol-rar-shortcut.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Wol-rar.exe"; Description: "Avvia Wol-rar"; Flags: nowait postinstall skipifsilent unchecked
 
 [Registry]
+; Icona e apertura del solo formato .wolrar; altre associazioni restano invariate.
+Root: HKCU; Subkey: "Software\Classes\.wolrar"; ValueType: string; ValueName: ""; ValueData: "Wol-rar.wolrar"; Flags: uninsdeletevalue uninsdeletekeyifempty
+Root: HKCU; Subkey: "Software\Classes\Wol-rar.wolrar"; ValueType: string; ValueName: ""; ValueData: "Archivio Wol-rar"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\Wol-rar.wolrar\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\assets\wol-rar-archive.ico,0"
+Root: HKCU; Subkey: "Software\Classes\Wol-rar.wolrar\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Wol-rar.exe"" --gui --open ""%1"""
+
 ; Archivi: un solo contenitore con azioni pertinenti.
 #define ArchiveExtension ".wolrar"
 #sub ArchiveMenu

@@ -53,6 +53,8 @@ struct Args {
     smoke_test: bool,
     #[arg(long, hide = true)]
     gui_smoke_test: bool,
+    #[arg(long, hide = true)]
+    gui_smoke_test_light: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -82,6 +84,12 @@ enum Command {
     Benchmark {
         #[arg(long, default_value_t = 32)]
         size_mib: u64,
+        /// Misura anche cifratura, volumi, recovery, ZIP e 7z
+        #[arg(long)]
+        suite: bool,
+        /// Salva il report JSON in un nuovo file
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Crea un eseguibile autoestraente da un .wolrar v2 a volume unico
     Sfx {
@@ -95,12 +103,51 @@ enum Command {
         #[arg(long)]
         destination: PathBuf,
     },
+    /// Elimina una voce riscrivendo e verificando l'archivio
+    Delete {
+        archive: PathBuf,
+        entry: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Rinomina una voce con percorso relativo sicuro
+    Rename {
+        archive: PathBuf,
+        entry: String,
+        to: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Aggiunge un file a un archivio esistente
+    Add {
+        archive: PathBuf,
+        source: PathBuf,
+        entry: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Aggiorna il contenuto di una voce esistente
+    Update {
+        archive: PathBuf,
+        source: PathBuf,
+        entry: String,
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
+    /// Converte in un formato supportato in scrittura
+    Convert {
+        archive: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+    },
     /// Mostra formati e capacità del motore
     Formats,
     /// Controlla la release più recente su GitHub
     UpdateCheck,
-    /// Scarica e verifica l'aggiornamento per questo sistema
-    UpdateDownload { destination: PathBuf },
+    /// Scarica e verifica l'aggiornamento nella cache gestita
+    UpdateDownload,
+    /// Avvia l'installer Windows verificato e attende il suo esito
+    UpdateInstall { asset: PathBuf },
     /// Mostra il prompt compatto per AGENTS.md
     Agent,
 }
@@ -132,10 +179,11 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
     if args.smoke_test {
         return Ok(json!({"ok": true, "engine": "rust", "version": env!("CARGO_PKG_VERSION")}));
     }
-    if args.gui_smoke_test {
-        wol_rar::gui::run(
+    if args.gui_smoke_test || args.gui_smoke_test_light {
+        wol_rar::gui::run_with_theme(
             wol_rar::gui::GuiAction::None,
-            Some(std::time::Instant::now() + std::time::Duration::from_secs(2)),
+            Some(std::time::Instant::now() + std::time::Duration::from_secs(3)),
+            args.gui_smoke_test_light,
         )
         .map_err(wol_rar::ArchiveError::Message)?;
         return Ok(json!({"ok": true, "gui": "eframe", "version": env!("CARGO_PKG_VERSION")}));
@@ -166,12 +214,28 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
         return Ok(json!({"ok": true, "gui": "eframe"}));
     }
     let password = read_password(args.password_stdin)?;
+    let edit_level = args.level;
+    let edit_comment = args.comment.clone();
+    let edit_volume_size = args.volume_size;
+    let edit_recovery_percent = args.recovery_percent;
+    let edit_deduplicate = args.deduplicate;
+    let make_edit_options = |password| CreateOptions {
+        level: edit_level,
+        password,
+        solid: true,
+        comment: edit_comment.clone(),
+        volume_size: edit_volume_size,
+        recovery_percent: edit_recovery_percent,
+        deduplicate: edit_deduplicate,
+    };
     match args.command {
         Some(Command::Agent) => Ok(Value::String(AGENT_PROMPT.into())),
         Some(Command::Formats) => Ok(json!({
             "ok": true,
             "create": ["wolrar", "7z", "zip", "tar", "tar.gz", "tar.bz2", "tar.xz"],
-            "read": ["wolrar", "7z", "zip", "rar", "tar", "tar.gz", "tar.bz2", "tar.xz"],
+            "read": ["wolrar", "7z", "zip", "rar", "tar", "tar.gz", "tar.bz2", "tar.xz", "iso", "cab", "arj", "lzh", "lha", "uue", "z"],
+            "edit": ["delete", "rename", "add", "update", "convert"],
+            "legacy_limitations": {"z": "Nessun digest o lunghezza originale: alcuni troncamenti non sono rilevabili"},
             "wolrar": {
                 "write_version": 2,
                 "read_versions": [1, 2],
@@ -255,9 +319,23 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
             RustArchiveEngine::test(&archive, password.as_ref().map(|value| value.as_str()))?;
             Ok(json!({"ok": true, "operation": "test", "archive": archive}))
         }
-        Some(Command::Benchmark { size_mib }) => {
-            let report = RustArchiveEngine::benchmark(size_mib)?;
-            Ok(json!({"ok": true, "operation": "benchmark", "report": report}))
+        Some(Command::Benchmark {
+            size_mib,
+            suite,
+            output,
+        }) => {
+            if suite {
+                let report = wol_rar::benchmark::run_suite(size_mib)?;
+                if let Some(output) = output {
+                    let file = std::fs::File::create_new(&output)?;
+                    serde_json::to_writer_pretty(file, &report)
+                        .map_err(|error| wol_rar::ArchiveError::Message(error.to_string()))?;
+                }
+                Ok(json!({"ok": true, "operation": "benchmark-suite", "report": report}))
+            } else {
+                let report = RustArchiveEngine::benchmark(size_mib)?;
+                Ok(json!({"ok": true, "operation": "benchmark", "report": report}))
+            }
         }
         Some(Command::Sfx { archive, output }) => {
             let report = RustArchiveEngine::create_sfx(&archive, &output)?;
@@ -270,6 +348,78 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
             let report = RustArchiveEngine::repair(&archive, &destination)?;
             Ok(json!({"ok": true, "operation": "repair", "report": report}))
         }
+        Some(Command::Delete {
+            archive,
+            entry,
+            output,
+        }) => {
+            let report = wol_rar::edit::rewrite(
+                &archive,
+                output.as_deref(),
+                wol_rar::edit::EditOperation::Delete { entry },
+                make_edit_options(password.clone()),
+                password,
+            )?;
+            Ok(json!({"ok": true, "operation": "delete", "report": report}))
+        }
+        Some(Command::Rename {
+            archive,
+            entry,
+            to,
+            output,
+        }) => {
+            let report = wol_rar::edit::rewrite(
+                &archive,
+                output.as_deref(),
+                wol_rar::edit::EditOperation::Rename {
+                    entry,
+                    new_path: to,
+                },
+                make_edit_options(password.clone()),
+                password,
+            )?;
+            Ok(json!({"ok": true, "operation": "rename", "report": report}))
+        }
+        Some(Command::Add {
+            archive,
+            source,
+            entry,
+            output,
+        }) => {
+            let report = wol_rar::edit::rewrite(
+                &archive,
+                output.as_deref(),
+                wol_rar::edit::EditOperation::Add { source, entry },
+                make_edit_options(password.clone()),
+                password,
+            )?;
+            Ok(json!({"ok": true, "operation": "add", "report": report}))
+        }
+        Some(Command::Update {
+            archive,
+            source,
+            entry,
+            output,
+        }) => {
+            let report = wol_rar::edit::rewrite(
+                &archive,
+                output.as_deref(),
+                wol_rar::edit::EditOperation::Update { source, entry },
+                make_edit_options(password.clone()),
+                password,
+            )?;
+            Ok(json!({"ok": true, "operation": "update", "report": report}))
+        }
+        Some(Command::Convert { archive, output }) => {
+            let report = wol_rar::edit::rewrite(
+                &archive,
+                Some(&output),
+                wol_rar::edit::EditOperation::Convert,
+                make_edit_options(password.clone()),
+                password,
+            )?;
+            Ok(json!({"ok": true, "operation": "convert", "report": report}))
+        }
         Some(Command::UpdateCheck) => {
             let release = wol_rar::update::check_latest()?;
             let newer = wol_rar::update::is_newer(&release.tag_name)?;
@@ -277,9 +427,13 @@ fn execute(args: Args) -> Result<Value, wol_rar::ArchiveError> {
                 json!({"ok": true, "operation": "update-check", "release": release, "newer": newer, "current": env!("CARGO_PKG_VERSION")}),
             )
         }
-        Some(Command::UpdateDownload { destination }) => {
-            let download = wol_rar::update::download_latest(&destination)?;
+        Some(Command::UpdateDownload) => {
+            let download = wol_rar::update::download_latest()?;
             Ok(json!({"ok": true, "operation": "update-download", "download": download}))
+        }
+        Some(Command::UpdateInstall { asset }) => {
+            let install = wol_rar::update::install_asset(&asset)?;
+            Ok(json!({"ok": true, "operation": "update-install", "install": install}))
         }
         None if !args.json
             && args.open.is_none()

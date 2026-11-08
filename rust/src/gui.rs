@@ -6,7 +6,7 @@ use eframe::egui::{self, Color32, RichText, ScrollArea, Stroke, TextureHandle, V
 use serde_json::{Value, json};
 use zeroize::Zeroizing;
 
-use crate::update::{ReleaseInfo, UpdateDownload};
+use crate::update::{ReleaseInfo, UpdateDownload, UpdatePhase};
 use crate::{ArchiveEntry, CreateOptions, RustArchiveEngine};
 
 const AGENT_PROMPT: &str = include_str!("../../agent/AGENTS.snippet.md");
@@ -26,6 +26,8 @@ enum WorkerKind {
     Operation,
     UpdateCheck,
     UpdateDownload,
+    UpdateInstall,
+    UpdateProgress,
 }
 
 struct WorkerResult {
@@ -38,6 +40,14 @@ enum Tab {
     Archive,
     News,
     Agent,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum WizardKind {
+    Create,
+    Extract,
+    Repair,
+    Update,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -147,6 +157,14 @@ impl Icons {
 }
 
 pub fn run(action: GuiAction, close_after: Option<Instant>) -> Result<(), String> {
+    run_with_theme(action, close_after, false)
+}
+
+pub fn run_with_theme(
+    action: GuiAction,
+    close_after: Option<Instant>,
+    light: bool,
+) -> Result<(), String> {
     let options = eframe::NativeOptions {
         renderer: eframe::Renderer::Wgpu,
         viewport: egui::ViewportBuilder::default()
@@ -163,6 +181,7 @@ pub fn run(action: GuiAction, close_after: Option<Instant>) -> Result<(), String
                 action,
                 close_after,
                 &context.egui_ctx,
+                light,
             )))
         }),
     )
@@ -196,6 +215,8 @@ struct WolRarApp {
     icons: Icons,
     archive: Option<PathBuf>,
     entries: Vec<ArchiveEntry>,
+    selected_entry: Option<String>,
+    rename_to: String,
     filter: String,
     comment: String,
     archive_comment: String,
@@ -215,12 +236,23 @@ struct WolRarApp {
     release_notes: String,
     newer_release: Option<ReleaseInfo>,
     last_download: Option<UpdateDownload>,
+    update_phase: UpdatePhase,
+    wizard: Option<(WizardKind, u8)>,
 }
 
 impl WolRarApp {
-    fn new(action: GuiAction, close_after: Option<Instant>, context: &egui::Context) -> Self {
+    fn new(
+        action: GuiAction,
+        close_after: Option<Instant>,
+        context: &egui::Context,
+        light: bool,
+    ) -> Self {
         let (tx, rx) = mpsc::channel();
-        let theme = ThemeMode::Dark;
+        let theme = if light {
+            ThemeMode::Light
+        } else {
+            ThemeMode::Dark
+        };
         apply_theme(context, theme);
         Self {
             tab: Tab::Archive,
@@ -228,6 +260,8 @@ impl WolRarApp {
             icons: Icons::new(context),
             archive: None,
             entries: Vec::new(),
+            selected_entry: None,
+            rename_to: String::new(),
             filter: String::new(),
             comment: String::new(),
             archive_comment: String::new(),
@@ -247,6 +281,8 @@ impl WolRarApp {
             release_notes: local_notes(),
             newer_release: None,
             last_download: None,
+            update_phase: UpdatePhase::Idle,
+            wizard: None,
         }
     }
 
@@ -301,7 +337,10 @@ impl WolRarApp {
         if let Some(path) = rfd::FileDialog::new()
             .add_filter(
                 "Archivi supportati",
-                &["wolrar", "7z", "zip", "rar", "tar", "gz", "bz2", "xz"],
+                &[
+                    "wolrar", "7z", "zip", "rar", "tar", "gz", "bz2", "xz", "iso", "cab", "arj",
+                    "lzh", "lha", "uue", "uu", "z",
+                ],
             )
             .pick_file()
         {
@@ -402,14 +441,115 @@ impl WolRarApp {
         });
     }
 
+    fn rewrite_archive(&mut self, operation: crate::edit::EditOperation, output: Option<PathBuf>) {
+        let Some(archive) = self.archive.clone() else {
+            self.status = "Apri prima un archivio".into();
+            return;
+        };
+        let password = self.password_value();
+        let options = CreateOptions {
+            level: self.compression_level,
+            password: password.clone(),
+            solid: true,
+            comment: if self.comment.is_empty() {
+                None
+            } else {
+                Some(self.comment.clone())
+            },
+            volume_size: None,
+            recovery_percent: 0,
+            deduplicate: self.deduplicate,
+        };
+        self.spawn(WorkerKind::Operation, move || {
+            let report =
+                crate::edit::rewrite(&archive, output.as_deref(), operation, options, password)
+                    .map_err(|error| error.to_string())?;
+            Ok(json!({"operation": "edit", "report": report}))
+        });
+    }
+
+    fn delete_selected(&mut self) {
+        let Some(entry) = self.selected_entry.clone() else {
+            self.status = "Seleziona prima una voce da eliminare".into();
+            return;
+        };
+        self.rewrite_archive(crate::edit::EditOperation::Delete { entry }, None);
+    }
+
+    fn rename_selected(&mut self) {
+        let Some(entry) = self.selected_entry.clone() else {
+            self.status = "Seleziona prima una voce da rinominare".into();
+            return;
+        };
+        let new_path = self.rename_to.trim().to_owned();
+        if new_path.is_empty() {
+            self.status = "Inserisci il nuovo percorso relativo".into();
+            return;
+        }
+        self.rewrite_archive(crate::edit::EditOperation::Rename { entry, new_path }, None);
+    }
+
+    fn add_to_archive(&mut self) {
+        if self.archive.is_none() {
+            self.status = "Apri prima un archivio".into();
+            return;
+        }
+        let Some(source) = rfd::FileDialog::new().pick_file() else {
+            return;
+        };
+        let Some(entry) = source
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_owned)
+        else {
+            self.status = "Nome file non valido".into();
+            return;
+        };
+        self.rewrite_archive(crate::edit::EditOperation::Add { source, entry }, None);
+    }
+
+    fn update_selected(&mut self) {
+        let Some(entry) = self.selected_entry.clone() else {
+            self.status = "Seleziona prima una voce da aggiornare".into();
+            return;
+        };
+        let Some(source) = rfd::FileDialog::new().pick_file() else {
+            return;
+        };
+        self.rewrite_archive(crate::edit::EditOperation::Update { source, entry }, None);
+    }
+
+    fn convert_archive(&mut self) {
+        if self.archive.is_none() {
+            self.status = "Apri prima un archivio".into();
+            return;
+        }
+        let Some(output) = rfd::FileDialog::new()
+            .add_filter("Archivio Wol-rar", &["wolrar"])
+            .add_filter("Archivio 7z", &["7z"])
+            .add_filter("Archivio ZIP", &["zip"])
+            .add_filter("Archivio TAR", &["tar"])
+            .set_file_name("convertito.wolrar")
+            .save_file()
+        else {
+            return;
+        };
+        self.rewrite_archive(crate::edit::EditOperation::Convert, Some(output));
+    }
+
     fn run_benchmark(&mut self) {
         self.spawn(WorkerKind::Operation, || {
-            let report = RustArchiveEngine::benchmark(32).map_err(|error| error.to_string())?;
-            Ok(json!({"operation": "benchmark", "report": report}))
+            let report = crate::benchmark::run_suite(32).map_err(|error| error.to_string())?;
+            Ok(json!({"operation": "benchmark-suite", "report": report}))
         });
     }
 
     fn check_updates(&mut self) {
+        if self.busy {
+            return;
+        }
+        self.update_phase = UpdatePhase::Checking;
+        self.status = "Controllo della release più recente…".into();
         self.spawn(WorkerKind::UpdateCheck, || {
             let release = crate::update::check_latest().map_err(|error| error.to_string())?;
             let newer =
@@ -419,21 +559,79 @@ impl WolRarApp {
     }
 
     fn download_update(&mut self) {
-        let Some(destination) = rfd::FileDialog::new().pick_folder() else {
+        if self.busy {
+            return;
+        }
+        self.update_phase = UpdatePhase::Downloading;
+        self.status = "Download dell'aggiornamento nella cache Wol-rar…".into();
+        let progress_tx = self.tx.clone();
+        self.spawn(WorkerKind::UpdateDownload, move || {
+            let download = crate::update::download_latest_with_progress(|phase| {
+                let _ = progress_tx.send(WorkerResult {
+                    kind: WorkerKind::UpdateProgress,
+                    result: Ok(json!({"phase": format!("{phase:?}")})),
+                });
+            })
+            .map_err(|error| error.to_string())?;
+            Ok(json!(download))
+        });
+    }
+
+    fn install_update(&mut self) {
+        if self.busy {
+            return;
+        }
+        let Some(download) = self.last_download.clone() else {
+            self.status = "Scarica e verifica prima un aggiornamento".into();
             return;
         };
-        self.spawn(WorkerKind::UpdateDownload, move || {
-            let download =
-                crate::update::download_latest(&destination).map_err(|error| error.to_string())?;
-            Ok(json!(download))
+        self.update_phase = UpdatePhase::Installing;
+        self.status = "Installer avviato; attesa dell'esito effettivo…".into();
+        self.spawn(WorkerKind::UpdateInstall, move || {
+            let install = crate::update::install_asset(&download.destination)
+                .map_err(|error| error.to_string())?;
+            Ok(json!(install))
         });
     }
 
     fn process_messages(&mut self) {
         while let Ok(message) = self.rx.try_recv() {
+            if matches!(message.kind, WorkerKind::UpdateProgress) {
+                if let Ok(value) = message.result {
+                    let phase = value
+                        .get("phase")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
+                    self.update_phase = match phase {
+                        "Checking" => UpdatePhase::Checking,
+                        "Downloading" => UpdatePhase::Downloading,
+                        "Verifying" => UpdatePhase::Verifying,
+                        "Ready" => UpdatePhase::Ready,
+                        _ => self.update_phase,
+                    };
+                    self.status = match self.update_phase {
+                        UpdatePhase::Checking => "Controllo della release più recente…".into(),
+                        UpdatePhase::Downloading => "Download dell'aggiornamento…".into(),
+                        UpdatePhase::Verifying => "Verifica SHA-256 del file scaricato…".into(),
+                        UpdatePhase::Ready => "Aggiornamento verificato e pronto".into(),
+                        _ => self.status.clone(),
+                    };
+                }
+                continue;
+            }
             self.busy = false;
             match message.result {
-                Err(error) => self.status = format!("Operazione non riuscita: {error}"),
+                Err(error) => {
+                    if matches!(
+                        message.kind,
+                        WorkerKind::UpdateCheck
+                            | WorkerKind::UpdateDownload
+                            | WorkerKind::UpdateInstall
+                    ) {
+                        self.update_phase = UpdatePhase::Error;
+                    }
+                    self.status = format!("Operazione non riuscita: {error}");
+                }
                 Ok(value) => match message.kind {
                     WorkerKind::List => {
                         self.archive = value
@@ -449,8 +647,10 @@ impl WolRarApp {
                             .and_then(Value::as_str)
                             .unwrap_or_default()
                             .to_owned();
+                        self.selected_entry = None;
+                        self.rename_to.clear();
                         self.status = format!(
-                            "{} voci · archivio aperto in sola lettura",
+                            "{} voci · archivio aperto con modifica transazionale",
                             self.entries.len()
                         );
                     }
@@ -464,6 +664,25 @@ impl WolRarApp {
                             "extract" => "Estrazione completata".into(),
                             "test" => "Integrità verificata: nessun errore".into(),
                             "repair" => "Volumi ricostruiti e manifest verificato".into(),
+                            "edit" => {
+                                if let Some(output) = value
+                                    .get("report")
+                                    .and_then(|report| report.get("output"))
+                                    .and_then(Value::as_str)
+                                {
+                                    self.pending_action = GuiAction::Open(PathBuf::from(output));
+                                }
+                                "Archivio riscritto e verificato; riapertura…".into()
+                            }
+                            "benchmark-suite" => {
+                                let count = value
+                                    .get("report")
+                                    .and_then(|report| report.get("cases"))
+                                    .and_then(Value::as_array)
+                                    .map(|cases| cases.len())
+                                    .unwrap_or_default();
+                                format!("Benchmark comparativo completato: {count} casi verificati")
+                            }
                             "benchmark" => {
                                 let report = value.get("report").cloned().unwrap_or_default();
                                 format!(
@@ -493,6 +712,7 @@ impl WolRarApp {
                             );
                             self.newer_release = Some(release);
                         }
+                        self.update_phase = UpdatePhase::Idle;
                         self.status =
                             if value.get("newer").and_then(Value::as_bool).unwrap_or(false) {
                                 "Nuova versione disponibile".into()
@@ -502,13 +722,34 @@ impl WolRarApp {
                     }
                     WorkerKind::UpdateDownload => {
                         if let Ok(download) = serde_json::from_value::<UpdateDownload>(value) {
+                            self.update_phase = UpdatePhase::Ready;
                             self.status = format!(
-                                "Aggiornamento {} scaricato e verificato",
+                                "Aggiornamento {} scaricato e verificato; pronto per Installa",
                                 download.version
                             );
                             self.last_download = Some(download);
                         }
                     }
+                    WorkerKind::UpdateInstall => {
+                        if value
+                            .get("success")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false)
+                        {
+                            self.update_phase = UpdatePhase::Completed;
+                            self.status =
+                                "Installazione completata; cache aggiornamenti svuotata".into();
+                            self.last_download = None;
+                        } else {
+                            self.update_phase = UpdatePhase::Ready;
+                            self.status = value
+                                .get("instructions")
+                                .and_then(Value::as_str)
+                                .unwrap_or("Segui le istruzioni per questo sistema")
+                                .to_owned();
+                        }
+                    }
+                    WorkerKind::UpdateProgress => {}
                 },
             }
         }
@@ -558,6 +799,20 @@ impl WolRarApp {
         }
         if context.input(|input| input.key_pressed(egui::Key::F5)) {
             self.test_archive();
+        }
+        if context.input(|input| input.key_pressed(egui::Key::F6)) {
+            self.repair_archive();
+        }
+        if context.input(|input| input.key_pressed(egui::Key::F2)) {
+            self.rename_selected();
+        }
+        if context.input(|input| input.modifiers.command && input.key_pressed(egui::Key::W)) {
+            self.open_wizard(WizardKind::Create);
+        }
+        if context.input(|input| {
+            input.modifiers.command && input.modifiers.shift && input.key_pressed(egui::Key::C)
+        }) {
+            self.convert_archive();
         }
         let dropped = context.input(|input| {
             input
@@ -663,6 +918,58 @@ impl WolRarApp {
                     self.tab = Tab::News;
                 }
             });
+            ui.horizontal_wrapped(|ui| {
+                let has_archive = self.archive.is_some() && !self.busy;
+                let has_selection = has_archive && self.selected_entry.is_some();
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("Elimina voce"))
+                    .clicked()
+                {
+                    self.delete_selected();
+                }
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("Rinomina"))
+                    .clicked()
+                {
+                    self.rename_selected();
+                }
+                if ui
+                    .add_enabled(has_archive, egui::Button::new("Aggiungi file"))
+                    .clicked()
+                {
+                    self.add_to_archive();
+                }
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("Aggiorna voce"))
+                    .clicked()
+                {
+                    self.update_selected();
+                }
+                if ui
+                    .add_enabled(has_archive, egui::Button::new("Converti"))
+                    .clicked()
+                {
+                    self.convert_archive();
+                }
+                if ui
+                    .add_enabled(!self.busy, egui::Button::new("Wizard creazione"))
+                    .clicked()
+                {
+                    self.open_wizard(WizardKind::Create);
+                }
+                if ui
+                    .add_enabled(has_archive, egui::Button::new("Wizard estrazione"))
+                    .clicked()
+                {
+                    self.open_wizard(WizardKind::Extract);
+                }
+                if ui
+                    .add_enabled(has_archive, egui::Button::new("Wizard riparazione"))
+                    .clicked()
+                {
+                    self.open_wizard(WizardKind::Repair);
+                }
+            });
         });
     }
 
@@ -708,10 +1015,38 @@ impl WolRarApp {
                             .hint_text("Facoltativo; nomi e commenti non sono segreti"),
                     );
                 });
+                if self.selected_entry.is_some() {
+                    ui.horizontal(|ui| {
+                        ui.label("Nuovo percorso voce");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.rename_to)
+                                .desired_width(f32::INFINITY)
+                                .hint_text("cartella/nome-rinominato.txt"),
+                        );
+                    });
+                }
+                if let Some(entry) = self
+                    .entries
+                    .iter()
+                    .find(|entry| Some(&entry.path) == self.selected_entry.as_ref())
+                    .cloned()
+                {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label(RichText::new("Metadati").strong());
+                        for (key, value) in entry.metadata {
+                            if !value.is_empty() {
+                                ui.label(format!("{key}: {value}"));
+                            }
+                        }
+                    });
+                }
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut self.deduplicate, "Deduplica contenuti identici (v2)");
                     if ui
-                        .add_enabled(!self.busy, egui::Button::new("Esegui benchmark 32 MiB"))
+                        .add_enabled(
+                            !self.busy,
+                            egui::Button::new("Benchmark comparativo 32 MiB"),
+                        )
                         .clicked()
                     {
                         self.run_benchmark();
@@ -780,7 +1115,7 @@ impl WolRarApp {
                 metric(ui, "COMPRESSA", format_size(packed), palette);
                 metric(ui, "RISPARMIO", format!("{ratio:.1}%"), palette);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(RichText::new("Sola lettura").color(palette.accent));
+                    ui.label(RichText::new("Modifica transazionale").color(palette.accent));
                 });
             });
             ui.add_space(8.0);
@@ -886,6 +1221,8 @@ impl WolRarApp {
                                 let response =
                                     ui.add(egui::Label::new(name).sense(egui::Sense::click()));
                                 if response.clicked() {
+                                    self.selected_entry = Some(entry.path.clone());
+                                    self.rename_to = entry.path.clone();
                                     self.status = format!("Selezionato: {}", entry.path);
                                 }
                                 ui.label(format_size(entry.size));
@@ -927,6 +1264,12 @@ impl WolRarApp {
                     {
                         self.check_updates();
                     }
+                    if ui
+                        .add_enabled(!self.busy, egui::Button::new("Wizard aggiornamento"))
+                        .clicked()
+                    {
+                        self.open_wizard(WizardKind::Update);
+                    }
                     if self.newer_release.is_some()
                         && ui
                             .add_enabled(!self.busy, egui::Button::new("Scarica e verifica"))
@@ -934,10 +1277,31 @@ impl WolRarApp {
                     {
                         self.download_update();
                     }
+                    if self.last_download.is_some()
+                        && ui
+                            .add_enabled(
+                                !self.busy,
+                                egui::Button::new(if cfg!(target_os = "windows") {
+                                    "Installa"
+                                } else {
+                                    "Istruzioni installazione"
+                                }),
+                            )
+                            .clicked()
+                    {
+                        self.install_update();
+                    }
                 });
             });
             ui.add_space(8.0);
-            ui.label(RichText::new("Nessuna connessione automatica. Download HTTPS solo su richiesta, con SHA-256 obbligatorio.").color(palette.muted));
+            ui.label(
+                RichText::new(format!(
+                    "Stato aggiornamento: {}",
+                    update_phase_label(self.update_phase)
+                ))
+                .color(palette.accent),
+            );
+            ui.label(RichText::new("Nessuna connessione automatica. Download HTTPS solo su richiesta, con SHA-256 obbligatorio. Dopo un errore l'artefatto utile resta nella cache; dopo installazione riuscita viene eliminato.").color(palette.muted));
         });
         ui.add_space(10.0);
         card(ui, palette, |ui| {
@@ -978,6 +1342,90 @@ impl WolRarApp {
                     ui.add(egui::Label::new(RichText::new(AGENT_PROMPT).monospace()).wrap());
                 });
         });
+    }
+
+    fn open_wizard(&mut self, kind: WizardKind) {
+        if matches!(kind, WizardKind::Extract | WizardKind::Repair) && self.archive.is_none() {
+            self.status = "Apri prima un archivio per usare il wizard".into();
+            return;
+        }
+        self.wizard = Some((kind, 1));
+    }
+
+    fn wizard_window(&mut self, context: &egui::Context) {
+        let Some((kind, step)) = self.wizard else {
+            return;
+        };
+        let title = match kind {
+            WizardKind::Create => "Wizard creazione",
+            WizardKind::Extract => "Wizard estrazione",
+            WizardKind::Repair => "Wizard riparazione",
+            WizardKind::Update => "Wizard aggiornamento",
+        };
+        let mut open = true;
+        egui::Window::new(title)
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(context, |ui| {
+                ui.set_min_width(470.0);
+                ui.heading(format!("Passaggio {step} di 2"));
+                ui.add_space(8.0);
+                let explanation = match (kind, step) {
+                    (WizardKind::Create, 1) => "Configura compressione, eventuale password e opzioni .wolrar nel pannello Opzioni. Nel passaggio successivo scegli origine e destinazione.",
+                    (WizardKind::Create, _) => "La creazione usa un file nuovo: nessun archivio esistente viene sovrascritto.",
+                    (WizardKind::Extract, 1) => "L'archivio sarà decodificato in una cartella scelta, con controlli traversal e nessuna sovrascrittura.",
+                    (WizardKind::Extract, _) => "Se l'archivio è cifrato, inserisci la password volatile nel pannello Opzioni prima di continuare.",
+                    (WizardKind::Repair, 1) => "La recovery .wolrar v2 ricostruisce i volumi in una nuova cartella, senza modificare gli originali.",
+                    (WizardKind::Repair, _) => "Il manifest e i digest vengono verificati prima della pubblicazione dei volumi riparati.",
+                    (WizardKind::Update, 1) => "La rete viene usata soltanto dopo il tuo clic. Controlla la release e leggi le note prima del download.",
+                    (WizardKind::Update, _) => "Scarica nella cache Wol-rar, verifica SHA-256 e poi scegli Installa. L'esito mostrato è quello reale del processo.",
+                };
+                ui.label(explanation);
+                ui.add_space(14.0);
+                ui.horizontal(|ui| {
+                    if ui.button("Chiudi").clicked() {
+                        self.wizard = None;
+                    }
+                    if step == 1 {
+                        let label = if kind == WizardKind::Update {
+                            "Controlla e continua"
+                        } else {
+                            "Avanti"
+                        };
+                        if ui.add_enabled(!self.busy, egui::Button::new(label)).clicked() {
+                            if kind == WizardKind::Update {
+                                self.check_updates();
+                            }
+                            self.wizard = Some((kind, 2));
+                        }
+                    } else {
+                        let label = match kind {
+                            WizardKind::Create => "Seleziona e crea",
+                            WizardKind::Extract => "Scegli cartella ed estrai",
+                            WizardKind::Repair => "Scegli cartella e ripara",
+                            WizardKind::Update if self.last_download.is_some() => "Installa / istruzioni",
+                            WizardKind::Update => "Scarica e verifica",
+                        };
+                        if ui.add_enabled(!self.busy, egui::Button::new(label)).clicked() {
+                            self.wizard = None;
+                            match kind {
+                                WizardKind::Create => self.create_archive(),
+                                WizardKind::Extract => self.extract_archive(),
+                                WizardKind::Repair => self.repair_archive(),
+                                WizardKind::Update if self.last_download.is_some() => {
+                                    self.install_update()
+                                }
+                                WizardKind::Update => self.download_update(),
+                            }
+                        }
+                    }
+                });
+            });
+        if !open {
+            self.wizard = None;
+        }
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -1034,6 +1482,7 @@ impl eframe::App for WolRarApp {
                 Tab::News => self.news_page(ui),
                 Tab::Agent => self.agent_page(ui),
             });
+        self.wizard_window(ui.ctx());
         ui.ctx().request_repaint_after(Duration::from_millis(100));
     }
 }
@@ -1138,6 +1587,19 @@ fn compression_ratio(entry: &ArchiveEntry) -> f64 {
     }
 }
 
+fn update_phase_label(phase: UpdatePhase) -> &'static str {
+    match phase {
+        UpdatePhase::Idle => "in attesa",
+        UpdatePhase::Checking => "controllo release",
+        UpdatePhase::Downloading => "download",
+        UpdatePhase::Verifying => "verifica SHA-256",
+        UpdatePhase::Ready => "pronto",
+        UpdatePhase::Installing => "installazione in corso",
+        UpdatePhase::Completed => "completato",
+        UpdatePhase::Error => "errore",
+    }
+}
+
 fn local_notes() -> String {
     include_str!("../../RELEASE_NOTES.md").into()
 }
@@ -1208,6 +1670,7 @@ mod tests {
             modified: "0".into(),
             directory: false,
             encrypted: false,
+            metadata: Default::default(),
         };
         assert_eq!(compression_ratio(&entry), 25.0);
         assert_eq!(format_size(1024), "1.0 KB");

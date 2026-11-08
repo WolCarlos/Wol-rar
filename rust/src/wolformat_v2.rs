@@ -291,8 +291,33 @@ pub fn list(path: &Path) -> Result<Vec<ArchiveEntry>, ArchiveError> {
             modified: entry.modified.to_string(),
             directory: entry.directory,
             encrypted: entry.encrypted,
+            metadata: std::collections::BTreeMap::from([
+                ("mode".into(), format!("{:o}", entry.mode)),
+                (
+                    "blake3".into(),
+                    entry
+                        .digest
+                        .iter()
+                        .map(|byte| format!("{byte:02x}"))
+                        .collect(),
+                ),
+                ("compression".into(), "zstd".into()),
+                ("chunk_count".into(), entry.chunk_count.to_string()),
+                (
+                    "duplicate_of".into(),
+                    entry
+                        .duplicate_of
+                        .map(|index| index.to_string())
+                        .unwrap_or_default(),
+                ),
+            ]),
         })
         .collect())
+}
+
+pub fn has_deduplication(path: &Path) -> Result<bool, ArchiveError> {
+    let (_, entries) = read_entries(path)?;
+    Ok(entries.iter().any(|entry| entry.duplicate_of.is_some()))
 }
 
 pub fn extract(

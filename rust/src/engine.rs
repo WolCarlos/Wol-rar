@@ -27,6 +27,12 @@ impl RustArchiveEngine {
             | ArchiveFormat::TarGz
             | ArchiveFormat::TarBz2
             | ArchiveFormat::TarXz => list_tar(path),
+            format @ (ArchiveFormat::Iso
+            | ArchiveFormat::Cab
+            | ArchiveFormat::Arj
+            | ArchiveFormat::Lzh
+            | ArchiveFormat::Uue
+            | ArchiveFormat::Z) => crate::legacy::list(path, format, password),
         }
     }
 
@@ -74,6 +80,15 @@ impl RustArchiveEngine {
             ArchiveFormat::Rar => Err(ArchiveError::UnsupportedFormat(
                 "La creazione RAR non è consentita".into(),
             )),
+            ArchiveFormat::Iso
+            | ArchiveFormat::Cab
+            | ArchiveFormat::Arj
+            | ArchiveFormat::Lzh
+            | ArchiveFormat::Uue
+            | ArchiveFormat::Z => Err(ArchiveError::UnsupportedFormat(format!(
+                "{} è disponibile soltanto in lettura",
+                format.name()
+            ))),
         }
     }
 
@@ -116,6 +131,12 @@ impl RustArchiveEngine {
             | ArchiveFormat::TarGz
             | ArchiveFormat::TarBz2
             | ArchiveFormat::TarXz => extract_tar(path, destination),
+            format @ (ArchiveFormat::Iso
+            | ArchiveFormat::Cab
+            | ArchiveFormat::Arj
+            | ArchiveFormat::Lzh
+            | ArchiveFormat::Uue
+            | ArchiveFormat::Z) => crate::legacy::extract(path, destination, format, password),
         }
     }
 
@@ -172,6 +193,16 @@ fn list_zip(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, Ar
             modified: format!("{:?}", file.last_modified()),
             directory: file.is_dir(),
             encrypted: file.encrypted(),
+            metadata: std::collections::BTreeMap::from([
+                ("compression".into(), format!("{:?}", file.compression())),
+                ("crc32".into(), format!("{:08x}", file.crc32())),
+                (
+                    "unix_mode".into(),
+                    file.unix_mode()
+                        .map(|mode| format!("{mode:o}"))
+                        .unwrap_or_default(),
+                ),
+            ]),
         });
     }
     Ok(entries)
@@ -256,6 +287,7 @@ fn list_7z(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, Arc
             modified: format!("{:?}", entry.last_modified_date),
             directory: entry.is_directory,
             encrypted: false,
+            metadata: Default::default(),
         })
         .collect())
 }
@@ -310,6 +342,7 @@ fn list_rar(path: &Path, password: Option<&str>) -> Result<Vec<ArchiveEntry>, Ar
             modified: String::new(),
             directory: entry.is_directory(),
             encrypted: entry.is_encrypted(),
+            metadata: Default::default(),
         });
     }
     Ok(entries)
@@ -350,6 +383,20 @@ fn list_tar(path: &Path) -> Result<Vec<ArchiveEntry>, ArchiveError> {
             modified: entry.header().mtime().unwrap_or_default().to_string(),
             directory: entry.header().entry_type().is_dir(),
             encrypted: false,
+            metadata: std::collections::BTreeMap::from([
+                (
+                    "mode".into(),
+                    format!("{:o}", entry.header().mode().unwrap_or_default()),
+                ),
+                (
+                    "uid".into(),
+                    entry.header().uid().unwrap_or_default().to_string(),
+                ),
+                (
+                    "gid".into(),
+                    entry.header().gid().unwrap_or_default().to_string(),
+                ),
+            ]),
         });
     }
     Ok(entries)

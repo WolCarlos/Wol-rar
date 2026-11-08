@@ -1,8 +1,10 @@
 pub mod benchmark;
+pub mod edit;
 pub mod engine;
 pub mod error;
 pub mod format;
 pub mod gui;
+pub mod legacy;
 pub mod safe;
 pub mod sfx;
 pub mod types;

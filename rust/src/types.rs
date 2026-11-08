@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -8,6 +10,8 @@ pub struct ArchiveEntry {
     pub modified: String,
     pub directory: bool,
     pub encrypted: bool,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, String>,
 }
 
 #[derive(Clone)]

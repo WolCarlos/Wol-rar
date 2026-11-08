@@ -1,12 +1,12 @@
-# Wol-rar 0.6.0
+# Wol-rar 0.7.0
 
-- Nuova `.wolrar` v2 con cifratura streaming per chunk, senza il limite v1 di 512 MiB per file cifrato.
-- Volumi multipli con manifest e digest, recovery Reed–Solomon e riparazione senza sovrascrittura.
-- Deduplicazione opzionale, SFX a volume unico e benchmark offline con verifica digest.
-- Nuova specifica pubblica CC0 `WOLRAR_FORMAT_V2.md`; lettura v1 mantenuta.
-- Interfaccia completamente rinnovata: tema scuro predefinito, tema chiaro, icone originali, riepilogo compressioni, tabella ordinabile e UX migliorata.
-- Nuove opzioni GUI/CLI per volumi, recovery e deduplicazione; nuovi comandi `repair`, `sfx` e `benchmark`.
-- Evidenza REA aggiuntiva sulla copia autorizzata di WinRAR, senza copiare codice o risorse proprietarie.
-- Ventinove test unitari, lint senza warning e smoke test CLI end-to-end.
+- Updater completo: download dell’asset corretto nella cache dedicata, HTTPS e SHA-256 obbligatori, pulsante **Installa**, attesa dell’exit status e retry dopo errore. Ubuntu e macOS mostrano istruzioni specifiche.
+- Nuova famiglia originale di 13 icone multi-dimensione per applicazione, installer, disinstallazione, collegamenti, Explorer, file `.wolrar` e SFX; registrazione `DefaultIcon` per il solo formato `.wolrar`.
+- Lettura ISO/Joliet, CAB, ARJ, LHA/LZH, UUE e Unix `.Z` con estrazione transazionale, fixture Unicode/traversal/troncamento e backend multipiattaforma documentati.
+- Nuove operazioni `delete`, `rename`, `add`, `update` e `convert`, con riscrittura in un nuovo file, verifica completa prima della pubblicazione e rollback dopo errori.
+- Commento, cifratura e deduplicazione vengono preservati quando supportati; volumi e recovery vengono rifiutati esplicitamente durante modifica/conversione invece di promettere una migrazione non verificata.
+- Metadati estesi nel JSON e nella GUI, wizard per creazione, estrazione, riparazione e aggiornamento, nuove scorciatoie e controlli di modifica entry.
+- Benchmark comparativo con sei profili: `.wolrar` normale, cifrato, volumi, recovery, ZIP e 7z; risultati JSON e verifica digest per ogni caso.
+- Quarantasei test unitari locali, Clippy senza warning, smoke CLI ampliato, test statici degli asset e smoke GUI dark/light con screenshot reali.
 
-Restano pianificati i formati legacy ISO, CAB, ARJ, LZH, UUE e Z e le operazioni di modifica archivio. RAR resta soltanto in lettura; nessuna parità non verificata viene dichiarata.
+Limiti espliciti: Unix `.Z` non include digest né lunghezza originale, quindi alcuni troncamenti non sono rilevabili. RAR resta soltanto in lettura tramite unRAR. L’installazione/disinstallazione di prova non è stata eseguita durante la consegna; asset e script installer sono verificati staticamente. La parità completa con WinRAR non viene dichiarata.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test locale del formato .wolrar attraverso la CLI pubblica."""
 
+import binascii
 import json
 import os
 from pathlib import Path
@@ -57,6 +58,49 @@ def main() -> None:
         run("extract", archive, "--destination", plain_destination)
         assert (plain_destination / first.name).read_bytes() == first.read_bytes()
         assert (plain_destination / second.name).read_bytes() == second.read_bytes()
+        entries = run("list", archive)["entries"]
+        assert all("blake3" in entry["metadata"] for entry in entries)
+        assert {"iso", "cab", "arj", "lzh", "uue", "z"} <= set(formats["read"])
+
+        edit_archive = root / "modifica.zip"
+        run("create", first, second, "--output", edit_archive)
+        run("delete", edit_archive, second.name)
+        run("rename", edit_archive, first.name, "rinominato àèé.txt")
+        run("add", edit_archive, second, second.name)
+        run("update", edit_archive, first, "rinominato àèé.txt")
+        converted = root / "convertito.wolrar"
+        run("convert", edit_archive, "--output", converted)
+        run("test", converted)
+        converted_destination = root / "convertito-estratto"
+        run("extract", converted, "--destination", converted_destination)
+        assert (converted_destination / "rinominato àèé.txt").read_bytes() == first.read_bytes()
+        assert (converted_destination / second.name).read_bytes() == second.read_bytes()
+
+        expected_license = (ROOT / "rust" / "fixtures" / "legacy" / "expected-license.txt").read_bytes()
+        for extension in ("arj", "cab", "lzh", "Z"):
+            fixture_name = {"arj": "stored.arj", "cab": "license_none.cab", "lzh": "stored.lzh", "Z": "LICENSE.Z"}[extension]
+            legacy_archive = root / fixture_name
+            legacy_archive.write_bytes((ROOT / "rust" / "fixtures" / "legacy" / fixture_name).read_bytes())
+            run("list", legacy_archive)
+            run("test", legacy_archive)
+            legacy_destination = root / f"legacy-{extension}"
+            run("extract", legacy_archive, "--destination", legacy_destination)
+            extracted_name = "fixture" if extension == "Z" else "LICENSE"
+            if extension == "Z":
+                extracted_name = legacy_archive.stem
+            assert (legacy_destination / extracted_name).read_bytes() == expected_license
+
+        uue_payload = "Contenuto UUE 日本語".encode("utf-8")
+        uue_name = "cartella/documento àèé.txt"
+        uue_lines = [f"begin 644 {uue_name}\n".encode("utf-8")]
+        uue_lines.extend(binascii.b2a_uu(uue_payload[offset : offset + 45]) for offset in range(0, len(uue_payload), 45))
+        uue_lines.extend([b"`\n", b"end\n"])
+        uue_archive = root / "unicode.uue"
+        uue_archive.write_bytes(b"".join(uue_lines))
+        run("test", uue_archive)
+        uue_destination = root / "uue-estratto"
+        run("extract", uue_archive, "--destination", uue_destination)
+        assert (uue_destination / uue_name).read_bytes() == uue_payload
 
         multi = root / "volumi.wolrar"
         run("create", second, "--output", multi, "--volume-size", 65536, "--recovery-percent", 10)
@@ -95,6 +139,15 @@ def main() -> None:
         assert report["report"]["archive_bytes"] > 0 and sfx.is_file()
         benchmark = run("benchmark", "--size-mib", 1)
         assert benchmark["report"]["verified"] is True
+        suite_output = root / "benchmark-suite.json"
+        suite = run("benchmark", "--size-mib", 1, "--suite", "--output", suite_output)
+        assert len(suite["report"]["cases"]) == 6
+        assert len(json.loads(suite_output.read_text(encoding="utf-8"))["cases"]) == 6
+
+        external_asset = root / ("Wol-rar-Setup-x64.exe" if os.name == "nt" else "Wol-rar-Linux-x64.tar.gz")
+        external_asset.write_bytes(b"non eseguire")
+        run("update-install", external_asset, ok=False)
+        assert external_asset.read_bytes() == b"non eseguire"
 
     print(json.dumps({"ok": True, "operation": "wolrar-cli-smoke"}, ensure_ascii=False))
 
